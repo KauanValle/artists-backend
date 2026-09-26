@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ArtistPlatform.Api/ArtistPlatform.Api.csproj" />
+    <Project Path="src/ArtistPlatform.Application/ArtistPlatform.Application.csproj" />
+    <Project Path="src/ArtistPlatform.Domain/ArtistPlatform.Domain.csproj" />
+    <Project Path="src/ArtistPlatform.Infrastructure/ArtistPlatform.Infrastructure.csproj" />
+    <Project Path="src/ArtistPlatform.Tests/ArtistPlatform.Tests.csproj" />
+  </Folder>
+</Solution>

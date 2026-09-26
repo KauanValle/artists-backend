@@ -1,0 +1,15 @@
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ArtistPlatform.Application.csproj.AssemblyReference.cache
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ArtistPlatform.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ArtistPlatform.Application.AssemblyInfoInputs.cache
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ArtistPlatform.Application.AssemblyInfo.cs
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ArtistPlatform.Application.csproj.CoreCompileInputs.cache
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\bin\Debug\net10.0\ArtistPlatform.Application.deps.json
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\bin\Debug\net10.0\ArtistPlatform.Application.dll
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\bin\Debug\net10.0\ArtistPlatform.Application.pdb
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\bin\Debug\net10.0\ArtistPlatform.Domain.dll
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\bin\Debug\net10.0\ArtistPlatform.Domain.pdb
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ArtistPl.38DA82CF.Up2Date
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ArtistPlatform.Application.dll
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\refint\ArtistPlatform.Application.dll
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ArtistPlatform.Application.pdb
+C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Application\obj\Debug\net10.0\ref\ArtistPlatform.Application.dll
