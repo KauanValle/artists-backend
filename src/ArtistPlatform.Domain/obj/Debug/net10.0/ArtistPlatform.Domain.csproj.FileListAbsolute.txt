@@ -1,11 +1,23 @@
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\obj\Debug\net10.0\ArtistPlatform.Domain.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\obj\Debug\net10.0\ArtistPlatform.Domain.AssemblyInfoInputs.cache
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\obj\Debug\net10.0\ArtistPlatform.Domain.AssemblyInfo.cs
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\obj\Debug\net10.0\ArtistPlatform.Domain.csproj.CoreCompileInputs.cache
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\bin\Debug\net10.0\ArtistPlatform.Domain.deps.json
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\bin\Debug\net10.0\ArtistPlatform.Domain.dll
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\bin\Debug\net10.0\ArtistPlatform.Domain.pdb
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\obj\Debug\net10.0\ArtistPlatform.Domain.dll
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\obj\Debug\net10.0\refint\ArtistPlatform.Domain.dll
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\obj\Debug\net10.0\ArtistPlatform.Domain.pdb
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Domain\obj\Debug\net10.0\ref\ArtistPlatform.Domain.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.AssemblyInfoInputs.cache
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.AssemblyInfo.cs
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.csproj.CoreCompileInputs.cache
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/bin/Debug/net10.0/ArtistPlatform.Domain.deps.json
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/bin/Debug/net10.0/ArtistPlatform.Domain.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/bin/Debug/net10.0/ArtistPlatform.Domain.pdb
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/refint/ArtistPlatform.Domain.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.pdb
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ref/ArtistPlatform.Domain.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/bin/Debug/net10.0/ArtistPlatform.Domain.deps.json
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/bin/Debug/net10.0/ArtistPlatform.Domain.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/bin/Debug/net10.0/ArtistPlatform.Domain.pdb
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.AssemblyInfoInputs.cache
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.AssemblyInfo.cs
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.csproj.CoreCompileInputs.cache
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.sourcelink.json
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/refint/ArtistPlatform.Domain.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ArtistPlatform.Domain.pdb
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/Debug/net10.0/ref/ArtistPlatform.Domain.dll

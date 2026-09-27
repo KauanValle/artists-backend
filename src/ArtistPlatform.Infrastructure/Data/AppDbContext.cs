@@ -36,9 +36,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     {
         base.ConfigureConventions(configurationBuilder);
 
-        // Compatível com qualquer provider MySQL: DateOnly→date, TimeOnly→time, List<string>→texto JSON.
-        configurationBuilder.Properties<DateOnly>().HaveConversion<DateOnlyConverter>();
-        configurationBuilder.Properties<TimeOnly>().HaveConversion<TimeOnlyConverter>();
+        // Npgsql mapeia DateOnly→date e TimeOnly→time nativamente; List<string> vai como texto JSON.
         configurationBuilder.Properties<List<string>>()
             .HaveConversion<StringListConverter, StringListComparer>()
             .HaveMaxLength(2000);
@@ -48,24 +46,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
-    }
-}
-
-public class DateOnlyConverter : ValueConverter<DateOnly, DateTime>
-{
-    public DateOnlyConverter() : base(
-        d => d.ToDateTime(TimeOnly.MinValue),
-        d => DateOnly.FromDateTime(d))
-    {
-    }
-}
-
-public class TimeOnlyConverter : ValueConverter<TimeOnly, TimeSpan>
-{
-    public TimeOnlyConverter() : base(
-        t => t.ToTimeSpan(),
-        t => TimeOnly.FromTimeSpan(t))
-    {
     }
 }
 

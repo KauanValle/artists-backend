@@ -9,10 +9,10 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     public AppDbContext CreateDbContext(string[] args)
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-            ?? "Server=localhost;Port=3306;Database=artistplatform;User=artist;Password=artist123;";
+            ?? "Host=localhost;Port=5432;Database=artistplatform;Username=artist;Password=artist123;";
 
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        optionsBuilder.UseMySQL(connectionString);
+        optionsBuilder.UseNpgsql(connectionString);
         return new AppDbContext(optionsBuilder.Options);
     }
 }
