@@ -24,7 +24,7 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' não configurada.");
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseMySQL(connectionString));
+            options.UseNpgsql(connectionString));
 
         // ASP.NET Core Identity + JWT + Refresh Tokens (PRD §5)
         services

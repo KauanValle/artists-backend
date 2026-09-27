@@ -1,13 +1,13 @@
 # Database Specification — Artist Platform
 
-MySQL 8 + Entity Framework Core 10. Migrations em
-`backend/src/ArtistPlatform.Infrastructure/Data/Migrations`.
+PostgreSQL 18 + Entity Framework Core 10 (Npgsql). Migrations em
+`backend/src/ArtistPlatform.Infrastructure/Migrations`.
 
-- Chaves primárias: `CHAR(36)` (GUID).
-- Timestamps `CreatedAt`/`UpdatedAt` em todas as entidades (`DATETIME(6)` UTC).
+- Chaves primárias: `uuid` (GUID).
+- Timestamps `CreatedAt`/`UpdatedAt` em todas as entidades (`timestamp with time zone` UTC).
 - Enums armazenados como `INT` no banco e serializados como string na API.
-- `DateOnly` → `date`, `TimeOnly` → `time`, `List<string>` → texto JSON (convenções em `AppDbContext`).
-- Dinheiros: `DECIMAL(12,2)`.
+- `DateOnly` → `date`, `TimeOnly` → `time without time zone`, `List<string>` → texto JSON (convenções em `AppDbContext`).
+- Dinheiros: `numeric(12,2)`.
 
 ## Identidade e Acesso (ASP.NET Core Identity)
 

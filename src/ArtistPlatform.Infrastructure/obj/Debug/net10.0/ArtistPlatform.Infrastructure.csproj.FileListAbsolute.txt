@@ -1,17 +1,35 @@
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ArtistPlatform.Infrastructure.csproj.AssemblyReference.cache
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ArtistPlatform.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ArtistPlatform.Infrastructure.AssemblyInfoInputs.cache
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ArtistPlatform.Infrastructure.AssemblyInfo.cs
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ArtistPlatform.Infrastructure.csproj.CoreCompileInputs.cache
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\bin\Debug\net10.0\ArtistPlatform.Infrastructure.deps.json
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\bin\Debug\net10.0\ArtistPlatform.Infrastructure.dll
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\bin\Debug\net10.0\ArtistPlatform.Infrastructure.pdb
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\bin\Debug\net10.0\ArtistPlatform.Application.dll
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\bin\Debug\net10.0\ArtistPlatform.Domain.dll
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\bin\Debug\net10.0\ArtistPlatform.Application.pdb
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\bin\Debug\net10.0\ArtistPlatform.Domain.pdb
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ArtistPl.F80B3350.Up2Date
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ArtistPlatform.Infrastructure.dll
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\refint\ArtistPlatform.Infrastructure.dll
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ArtistPlatform.Infrastructure.pdb
-C:\Users\Kauan Valle\Documents\Projects\Artistas\backend\src\ArtistPlatform.Infrastructure\obj\Debug\net10.0\ref\ArtistPlatform.Infrastructure.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.csproj.AssemblyReference.cache
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.AssemblyInfoInputs.cache
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.AssemblyInfo.cs
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.csproj.CoreCompileInputs.cache
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Infrastructure.deps.json
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Infrastructure.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Infrastructure.pdb
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Application.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Domain.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Application.pdb
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Domain.pdb
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPl.F80B3350.Up2Date
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/refint/ArtistPlatform.Infrastructure.dll
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.pdb
+C:/Users/Kauan Valle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ref/ArtistPlatform.Infrastructure.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.csproj.AssemblyReference.cache
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.AssemblyInfoInputs.cache
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.AssemblyInfo.cs
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.csproj.CoreCompileInputs.cache
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.sourcelink.json
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/refint/ArtistPlatform.Infrastructure.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPlatform.Infrastructure.pdb
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Infrastructure.deps.json
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Infrastructure.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Infrastructure.pdb
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Application.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Domain.dll
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Application.pdb
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/bin/Debug/net10.0/ArtistPlatform.Domain.pdb
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ArtistPl.F80B3350.Up2Date
+/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Infrastructure/obj/Debug/net10.0/ref/ArtistPlatform.Infrastructure.dll
