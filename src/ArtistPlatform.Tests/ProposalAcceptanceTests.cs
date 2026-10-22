@@ -34,7 +34,7 @@ public class ProposalAcceptanceTests
             ArtistId = artist.Id,
             ContractorId = contractor.Id,
             Status = ProposalStatus.Pending,
-            ValidUntil = Now.AddDays(7),
+            ValidUntil = DateTime.UtcNow.AddDays(7), // CanBeAccepted compara com o relógio real
             Items = { new ProposalItem { Description = "Show 3h", Amount = 2000m } },
             TravelCost = 200m,
             EquipmentCost = 300m
@@ -88,7 +88,7 @@ public class ProposalAcceptanceTests
     {
         var db = TestDb.Create();
         var (artist, contractor, _, proposal) = Seed(db);
-        proposal.ValidUntil = Now.AddDays(-1);
+        proposal.ValidUntil = DateTime.UtcNow.AddDays(-1);
         db.SaveChanges();
 
         var user = new FakeCurrentUser { Role = UserRole.Contractor, UserId = contractor.UserId, ContractorId = contractor.Id };

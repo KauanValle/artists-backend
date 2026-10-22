@@ -12,6 +12,7 @@ namespace ArtistPlatform.Application.Services;
 public interface IBookingService
 {
     Task<BookingDto> CreateAsync(CreateBookingRequestDto request);
+    Task<BookingDto> CreateGuestAsync(CreateGuestBookingRequestDto request);
     Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, int page, int pageSize);
     Task<BookingDto> GetAsync(Guid id);
     Task<BookingDto> StartNegotiationAsync(Guid id);
@@ -75,6 +76,61 @@ public class BookingService(
         return await ToDtoAsync(booking, artist.ArtisticName, await GetContractorNameAsync(contractorId));
     }
 
+    /// <summary>
+    /// Solicitação pela rota pública, sem cadastro: grava os dados de contato informados na hora
+    /// (nome do responsável, estabelecimento e WhatsApp), sem contratante, conversa ou notificação
+    /// para contratante — o artista entra em contato pelo WhatsApp informado.
+    /// </summary>
+    public async Task<BookingDto> CreateGuestAsync(CreateGuestBookingRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.GuestName))
+            throw new ValidationException("Informe o nome do responsável.");
+        if (string.IsNullOrWhiteSpace(request.GuestPhone))
+            throw new ValidationException("Informe o WhatsApp do responsável.");
+        if (request.Budget is not > 0)
+            throw new ValidationException("Informe o valor da proposta.");
+        if (request.EndTime <= request.StartTime)
+            throw new ValidationException("O horário final deve ser maior que o inicial.");
+        if (request.EventDate < DateOnly.FromDateTime(DateTime.Today))
+            throw new ValidationException("A data do evento não pode estar no passado.");
+
+        var artist = await db.Artists.AsNoTracking().FirstOrDefaultAsync(a => a.Id == request.ArtistId)
+            ?? throw new NotFoundException("Artista não encontrado.");
+        var isPublished = await db.ArtistProfiles.AsNoTracking()
+            .AnyAsync(p => p.ArtistId == artist.Id && p.IsPublished);
+        if (!isPublished)
+            throw new NotFoundException("Artista não encontrado.");
+
+        var booking = new BookingRequest
+        {
+            ArtistId = request.ArtistId,
+            ContractorId = null,
+            EventDate = request.EventDate,
+            StartTime = request.StartTime,
+            EndTime = request.EndTime,
+            Location = request.Location,
+            EventType = request.EventType,
+            EstimatedAudience = request.EstimatedAudience,
+            Budget = request.Budget,
+            Message = request.Message ?? string.Empty,
+            GuestName = request.GuestName.Trim(),
+            GuestCompanyName = string.IsNullOrWhiteSpace(request.GuestCompanyName) ? null : request.GuestCompanyName.Trim(),
+            GuestPhone = request.GuestPhone.Trim(),
+            Status = BookingStatus.Requested
+        };
+        db.BookingRequests.Add(booking);
+        await db.SaveChangesAsync();
+
+        await notifications.NotifyAsync(
+            artist.UserId,
+            NotificationType.NewBookingRequest,
+            "Nova solicitação de contratação",
+            $"{request.GuestName.Trim()} ({request.GuestPhone.Trim()}) solicitou {artist.ArtisticName} para {request.EventDate:dd/MM/yyyy} às {request.StartTime}.",
+            $"/shows/{booking.Id}");
+
+        return await ToDtoAsync(booking, artist.ArtisticName, booking.GuestName);
+    }
+
     /// <summary>Lista com abas por status (PRD §10), filtrada pelo papel do usuário autenticado.</summary>
     public async Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, int page, int pageSize)
     {
@@ -131,16 +187,19 @@ public class BookingService(
             throw new BusinessRuleException("RN018: esta solicitação não pode mais ser recusada.");
 
         var artist = await db.Artists.AsNoTracking().FirstAsync(a => a.Id == booking.ArtistId);
-        var contractorUser = await db.Contractors.AsNoTracking().Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstAsync();
+        var contractorUser = booking.ContractorId is null
+            ? null
+            : (Guid?)await db.Contractors.AsNoTracking().Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstAsync();
 
         booking.Status = BookingStatus.Rejected;
         booking.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        await notifications.NotifyAsync(contractorUser, NotificationType.ProposalRejected,
-            "Solicitação recusada",
-            $"{artist.ArtisticName} recusou a solicitação para {booking.EventDate:dd/MM/yyyy}.",
-            $"/solicitacoes/{booking.Id}");
+        if (contractorUser.HasValue)
+            await notifications.NotifyAsync(contractorUser.Value, NotificationType.ProposalRejected,
+                "Solicitação recusada",
+                $"{artist.ArtisticName} recusou a solicitação para {booking.EventDate:dd/MM/yyyy}.",
+                $"/solicitacoes/{booking.Id}");
 
         return (await MapAllAsync([booking])).First();
     }
@@ -203,8 +262,10 @@ public class BookingService(
         }
 
         var artist = await db.Artists.AsNoTracking().FirstAsync(a => a.Id == booking.ArtistId);
-        var contractorUser = await db.Contractors.AsNoTracking()
-            .Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstAsync();
+        var contractorUser = booking.ContractorId is null
+            ? null
+            : (Guid?)await db.Contractors.AsNoTracking()
+                .Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstAsync();
 
         // RN007: aceite cria/confirma o evento (RN008: bloqueia a agenda)
         var ev = new Event
@@ -245,10 +306,11 @@ public class BookingService(
             "Show confirmado",
             $"Solicitação aceita! Show confirmado para {booking.EventDate:dd/MM/yyyy} às {booking.StartTime} em {booking.Location}.",
             $"/shows/{booking.Id}");
-        await notifications.NotifyAsync(contractorUser, NotificationType.ShowConfirmed,
-            "Solicitação aceita",
-            $"{artist.ArtisticName} aceitou sua solicitação de {booking.Budget.Value:C}. O evento está confirmado.",
-            $"/solicitacoes/{booking.Id}");
+        if (contractorUser.HasValue)
+            await notifications.NotifyAsync(contractorUser.Value, NotificationType.ShowConfirmed,
+                "Solicitação aceita",
+                $"{artist.ArtisticName} aceitou sua solicitação de {booking.Budget.Value:C}. O evento está confirmado.",
+                $"/solicitacoes/{booking.Id}");
 
         return (await MapAllAsync([booking])).First();
     }
@@ -287,8 +349,9 @@ public class BookingService(
         var artists = await db.Artists.AsNoTracking()
             .Where(a => artistIds.Contains(a.Id))
             .ToDictionaryAsync(a => a.Id, a => new { a.ArtisticName, a.ProfilePhotoUrl });
+        var registeredContractorIds = contractorIds.Where(id => id.HasValue).Select(id => id!.Value).ToList();
         var contractors = await db.Contractors.AsNoTracking()
-            .Where(c => contractorIds.Contains(c.Id))
+            .Where(c => registeredContractorIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c.Name);
         var conversations = await db.Conversations.AsNoTracking()
             .Where(c => bookingIds.Contains(c.BookingRequestId))
@@ -300,7 +363,10 @@ public class BookingService(
             artists.GetValueOrDefault(b.ArtistId)?.ArtisticName ?? "Artista",
             artists.GetValueOrDefault(b.ArtistId)?.ProfilePhotoUrl,
             b.ContractorId,
-            contractors.GetValueOrDefault(b.ContractorId, "Contratante"),
+            b.IsGuest ? b.GuestName : contractors.GetValueOrDefault(b.ContractorId!.Value, "Contratante"),
+            b.IsGuest,
+            b.GuestCompanyName,
+            b.IsGuest ? b.GuestPhone : null,
             b.EventDate,
             b.StartTime,
             b.EndTime,
@@ -331,6 +397,7 @@ public class BookingService(
 
         return new BookingDto(
             booking.Id, booking.ArtistId, artistName, null, booking.ContractorId, contractorName,
+            booking.IsGuest, booking.GuestCompanyName, booking.IsGuest ? booking.GuestPhone : null,
             booking.EventDate, booking.StartTime, booking.EndTime, booking.Location, booking.EventType,
             booking.EstimatedAudience, booking.Budget, booking.Message, booking.Status,
             booking.EventId, booking.AcceptedProposalId, conversation?.Id ?? Guid.Empty, booking.CreatedAt);
