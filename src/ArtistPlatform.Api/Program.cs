@@ -20,7 +20,8 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => poli
         "http://localhost:5173",
         "http://localhost:3000",
         "http://frontend:80",
-        "http://localhost")
+        "http://localhost",
+        "https://artists-frontend-psi.vercel.app")
     .AllowAnyHeader()
     .AllowAnyMethod()));
 
