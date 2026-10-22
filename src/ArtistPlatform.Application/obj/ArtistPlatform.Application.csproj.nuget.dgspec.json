@@ -1,33 +1,39 @@
 {
   "format": 1,
   "restore": {
-    "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Application/ArtistPlatform.Application.csproj": {}
+    "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Application\\ArtistPlatform.Application.csproj": {}
   },
   "projects": {
-    "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Application/ArtistPlatform.Application.csproj": {
+    "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Application\\ArtistPlatform.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Application/ArtistPlatform.Application.csproj",
+        "projectUniqueName": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Application\\ArtistPlatform.Application.csproj",
         "projectName": "ArtistPlatform.Application",
-        "projectPath": "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Application/ArtistPlatform.Application.csproj",
-        "packagesPath": "/Users/kauanvalle/.nuget/packages/",
-        "outputPath": "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Application/obj/",
+        "projectPath": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Application\\ArtistPlatform.Application.csproj",
+        "packagesPath": "C:\\Users\\Kauan Valle\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Application\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "/Users/kauanvalle/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\Kauan Valle\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net10.0": {
             "targetAlias": "net10.0",
             "projectReferences": {
-              "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/ArtistPlatform.Domain.csproj": {
-                "projectPath": "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/ArtistPlatform.Domain.csproj"
+              "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Domain\\ArtistPlatform.Domain.csproj": {
+                "projectPath": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Domain\\ArtistPlatform.Domain.csproj"
               }
             }
           }
@@ -73,7 +79,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -351,22 +357,28 @@
         }
       }
     },
-    "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/ArtistPlatform.Domain.csproj": {
+    "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Domain\\ArtistPlatform.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/ArtistPlatform.Domain.csproj",
+        "projectUniqueName": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Domain\\ArtistPlatform.Domain.csproj",
         "projectName": "ArtistPlatform.Domain",
-        "projectPath": "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/ArtistPlatform.Domain.csproj",
-        "packagesPath": "/Users/kauanvalle/.nuget/packages/",
-        "outputPath": "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/obj/",
+        "projectPath": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Domain\\ArtistPlatform.Domain.csproj",
+        "packagesPath": "C:\\Users\\Kauan Valle\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Domain\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "/Users/kauanvalle/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\Kauan Valle\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -406,7 +418,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",

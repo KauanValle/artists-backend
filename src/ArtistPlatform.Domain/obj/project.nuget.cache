@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "g1xIjqzyfYU=",
+  "dgSpecHash": "OoPt4tJJaoA=",
   "success": true,
-  "projectFilePath": "/Users/kauanvalle/Documents/Projects/Artistas/backend/src/ArtistPlatform.Domain/ArtistPlatform.Domain.csproj",
+  "projectFilePath": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Domain\\ArtistPlatform.Domain.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }
