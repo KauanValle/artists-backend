@@ -15,13 +15,31 @@ public record CreateBookingRequestDto(
     decimal? Budget,
     string Message);
 
+/// <summary>Solicitação aberta pela rota pública (sem cadastro): dados de contato informados na hora.</summary>
+public record CreateGuestBookingRequestDto(
+    Guid ArtistId,
+    string GuestName,
+    string? GuestCompanyName,
+    string GuestPhone,
+    decimal Budget,
+    DateOnly EventDate,
+    TimeOnly StartTime,
+    TimeOnly EndTime,
+    string Location,
+    EventType EventType,
+    int? EstimatedAudience,
+    string Message);
+
 public record BookingDto(
     Guid Id,
     Guid ArtistId,
     string ArtistName,
     string? ArtistPhotoUrl,
-    Guid ContractorId,
+    Guid? ContractorId,
     string ContractorName,
+    bool IsGuest,
+    string? GuestCompanyName,
+    string? GuestPhone,
     DateOnly EventDate,
     TimeOnly StartTime,
     TimeOnly EndTime,
@@ -44,7 +62,7 @@ public record ProposalDto(
     Guid Id,
     Guid BookingRequestId,
     Guid ArtistId,
-    Guid ContractorId,
+    Guid? ContractorId,
     ProposalStatus Status,
     List<ProposalItemDto> Items,
     decimal TravelCost,

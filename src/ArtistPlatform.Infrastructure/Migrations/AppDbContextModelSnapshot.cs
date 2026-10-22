@@ -265,7 +265,7 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)");
 
-                    b.Property<Guid>("ContractorId")
+                    b.Property<Guid?>("ContractorId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -285,6 +285,20 @@ namespace ArtistPlatform.Infrastructure.Migrations
 
                     b.Property<int>("EventType")
                         .HasColumnType("integer");
+
+                    b.Property<string>("GuestCompanyName")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("GuestName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("GuestPhone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Location")
                         .IsRequired()
@@ -755,7 +769,7 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.Property<Guid>("BookingRequestId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ContractorId")
+                    b.Property<Guid?>("ContractorId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")

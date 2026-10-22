@@ -47,7 +47,9 @@ public class ProposalService(
             throw new BusinessRuleException("RN018: esta solicitação não aceita mais propostas.");
 
         var artistUser = await db.Artists.AsNoTracking().Where(a => a.Id == artistId).Select(a => a.UserId).FirstAsync();
-        var contractorUser = await db.Contractors.AsNoTracking().Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstAsync();
+        var contractorUser = booking.ContractorId is null
+            ? null
+            : (Guid?)await db.Contractors.AsNoTracking().Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstAsync();
 
         var proposal = new Proposal
         {
@@ -78,10 +80,11 @@ public class ProposalService(
         await db.SaveChangesAsync();
 
         var artist = await db.Artists.AsNoTracking().FirstAsync(a => a.Id == artistId);
-        await notifications.NotifyAsync(contractorUser, NotificationType.NewProposal,
-            "Nova proposta recebida",
-            $"{artist.ArtisticName} enviou uma proposta de {proposal.FinalAmount:C} para {booking.EventDate:dd/MM/yyyy}.",
-            $"/solicitacoes/{booking.Id}");
+        if (contractorUser.HasValue)
+            await notifications.NotifyAsync(contractorUser.Value, NotificationType.NewProposal,
+                "Nova proposta recebida",
+                $"{artist.ArtisticName} enviou uma proposta de {proposal.FinalAmount:C} para {booking.EventDate:dd/MM/yyyy}.",
+                $"/solicitacoes/{booking.Id}");
 
         return ToDto(proposal);
     }
@@ -120,8 +123,8 @@ public class ProposalService(
 
         var booking = await db.BookingRequests.FirstAsync(b => b.Id == proposal.BookingRequestId);
 
-        // RN019: proposta expirada não pode ser aceita
-        if (proposal.Status == ProposalStatus.Pending && clock.UtcNow > proposal.ValidUntil)
+        // RN019: proposta expirada não pode ser aceita (mesmo relógio de Proposal.IsExpired)
+        if (proposal.Status == ProposalStatus.Pending && DateTime.UtcNow > proposal.ValidUntil)
         {
             proposal.Status = ProposalStatus.Expired;
             booking.Status = BookingStatus.Expired;
@@ -159,8 +162,10 @@ public class ProposalService(
         }
 
         var artist = await db.Artists.AsNoTracking().FirstAsync(a => a.Id == proposal.ArtistId);
-        var contractorUserId = await db.Contractors.AsNoTracking()
-            .Where(c => c.Id == proposal.ContractorId).Select(c => c.UserId).FirstAsync();
+        var contractorUserId = proposal.ContractorId is null
+            ? null
+            : (Guid?)await db.Contractors.AsNoTracking()
+                .Where(c => c.Id == proposal.ContractorId).Select(c => c.UserId).FirstAsync();
 
         // 1) proposta ACCEPTED
         proposal.Status = ProposalStatus.Accepted;
@@ -209,10 +214,11 @@ public class ProposalService(
             "Show confirmado",
             $"Proposta aceita! Show confirmado para {booking.EventDate:dd/MM/yyyy} às {booking.StartTime} em {booking.Location}.",
             $"/shows/{booking.Id}");
-        await notifications.NotifyAsync(contractorUserId, NotificationType.ProposalAccepted,
-            "Proposta aceita",
-            $"Sua proposta de {proposal.FinalAmount:C} foi aceita. O evento está confirmado.",
-            $"/solicitacoes/{booking.Id}");
+        if (contractorUserId.HasValue)
+            await notifications.NotifyAsync(contractorUserId.Value, NotificationType.ProposalAccepted,
+                "Proposta aceita",
+                $"Sua proposta de {proposal.FinalAmount:C} foi aceita. O evento está confirmado.",
+                $"/solicitacoes/{booking.Id}");
 
         return ToDto(proposal);
     }

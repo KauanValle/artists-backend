@@ -8,7 +8,7 @@ public class Proposal : BaseEntity
 {
     public Guid BookingRequestId { get; set; }
     public Guid ArtistId { get; set; }
-    public Guid ContractorId { get; set; }
+    public Guid? ContractorId { get; set; }
     public ProposalStatus Status { get; set; } = ProposalStatus.Pending;
     public List<ProposalItem> Items { get; set; } = [];
     public decimal TravelCost { get; set; }

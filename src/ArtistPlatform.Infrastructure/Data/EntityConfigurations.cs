@@ -100,6 +100,9 @@ public class BookingRequestConfiguration : IEntityTypeConfiguration<BookingReque
         builder.Property(b => b.Location).HasMaxLength(300).IsRequired();
         builder.Property(b => b.Message).HasMaxLength(2000);
         builder.Property(b => b.Budget).HasPrecision(12, 2);
+        builder.Property(b => b.GuestName).HasMaxLength(160);
+        builder.Property(b => b.GuestCompanyName).HasMaxLength(160);
+        builder.Property(b => b.GuestPhone).HasMaxLength(20);
         builder.HasIndex(b => new { b.ArtistId, b.Status });
         builder.HasIndex(b => new { b.ContractorId, b.Status });
     }

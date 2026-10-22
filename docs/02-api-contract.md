@@ -66,6 +66,16 @@ Swagger UI em `/swagger` (Development).
 | POST | `/bookings/{id}/reject` | Artista | → REJECTED (RN018: terminal) |
 | POST | `/bookings/{id}/cancel` | ✔ | antes da confirmação |
 
+## /api/public/bookings
+
+Rota aberta (sem cadastro) para a vitrine pública: o visitante solicita a contratação direto na
+página do artista. A solicitação nasce sem contratante (`ContractorId` nulo) com os dados de
+contato gravados nela mesma — sem conversa interna; o artista contata o responsável pelo WhatsApp.
+
+| Método | Rota | Auth | Observação |
+|---|---|---|---|
+| POST | `/public/bookings` — `{ artistId, guestName, guestCompanyName?, guestPhone, budget, eventDate, startTime, endTime, location, eventType, estimatedAudience?, message }` | ✖ pública | valida artista publicado, datas, WhatsApp e `budget > 0`; cria REQUESTED e notifica o artista com o contato |
+
 ## /api/proposals
 
 | Método | Rota | Auth | Observação |
