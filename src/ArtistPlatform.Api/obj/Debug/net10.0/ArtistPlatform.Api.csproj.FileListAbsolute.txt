@@ -436,3 +436,5 @@ C:\Users\Kauan Valle\Documents\Projects\Artistas-V2\artists-backend\src\ArtistPl
 C:\Users\Kauan Valle\Documents\Projects\Artistas-V2\artists-backend\src\ArtistPlatform.Api\obj\Debug\net10.0\ArtistPlatform.Api.pdb
 C:\Users\Kauan Valle\Documents\Projects\Artistas-V2\artists-backend\src\ArtistPlatform.Api\obj\Debug\net10.0\ArtistPlatform.Api.genruntimeconfig.cache
 C:\Users\Kauan Valle\Documents\Projects\Artistas-V2\artists-backend\src\ArtistPlatform.Api\obj\Debug\net10.0\ref\ArtistPlatform.Api.dll
+C:\Users\Kauan Valle\Documents\Projects\Artistas-V2\artists-backend\src\ArtistPlatform.Api\bin\Debug\net10.0\AWSSDK.Core.dll
+C:\Users\Kauan Valle\Documents\Projects\Artistas-V2\artists-backend\src\ArtistPlatform.Api\bin\Debug\net10.0\AWSSDK.S3.dll

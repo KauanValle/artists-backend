@@ -49,6 +49,10 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// Garante wwwroot/uploads ANTES do Build: o UseStaticFiles resolve o provider do web root na
+// construção do pipeline — sem a pasta, ele não serve nada pelo resto da vida do processo.
+Directory.CreateDirectory(Path.Combine(builder.Environment.ContentRootPath, "wwwroot", "uploads"));
+
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
