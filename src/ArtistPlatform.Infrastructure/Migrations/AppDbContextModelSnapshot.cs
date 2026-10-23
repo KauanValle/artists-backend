@@ -207,6 +207,11 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
+                    b.Property<string>("EventTypes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<string>("GalleryUrls")
                         .IsRequired()
                         .HasMaxLength(2000)

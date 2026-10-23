@@ -10,6 +10,10 @@ public class ArtistProfile : BaseEntity
     public string Description { get; set; } = string.Empty;
     public List<string> Styles { get; set; } = [];
     public List<string> Specialties { get; set; } = [];
+
+    /// <summary>Tipos de evento que o artista atende (aniversário, casamento, corporativo...).</summary>
+    public List<string> EventTypes { get; set; } = [];
+
     public List<string> GalleryUrls { get; set; } = [];
     public List<string> VideoUrls { get; set; } = [];
     public bool IsPublished { get; set; }

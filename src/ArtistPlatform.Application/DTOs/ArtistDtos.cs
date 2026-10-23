@@ -36,6 +36,7 @@ public record SaveArtistRequest(
     string Description,
     List<string> Styles,
     List<string> Specialties,
+    List<string>? EventTypes,
     List<string> GalleryUrls,
     List<string> VideoUrls);
 
@@ -53,6 +54,7 @@ public record ArtistDto(
     string Description,
     List<string> Styles,
     List<string> Specialties,
+    List<string> EventTypes,
     List<string> GalleryUrls,
     List<string> VideoUrls,
     string Slug,
@@ -102,6 +104,7 @@ public record ArtistDetailPublicDto(
     string Description,
     List<string> Styles,
     List<string> Specialties,
+    List<string> EventTypes,
     List<string> GalleryUrls,
     List<string> VideoUrls,
     double? AverageRating,

@@ -84,6 +84,12 @@ public class ArtistService(IAppDbContext db) : IArtistService
         profile.Description = request.Description ?? string.Empty;
         profile.Styles = request.Styles ?? [];
         profile.Specialties = request.Specialties ?? [];
+        profile.EventTypes = (request.EventTypes ?? [])
+            .Select(e => e.Trim())
+            .Where(e => e.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
         profile.GalleryUrls = request.GalleryUrls ?? [];
         profile.VideoUrls = request.VideoUrls ?? [];
         profile.UpdatedAt = DateTime.UtcNow;
@@ -261,7 +267,8 @@ public class ArtistService(IAppDbContext db) : IArtistService
             artist.Id, artist.Type.ToString(), artist.Name, artist.ArtisticName,
             artist.CategoryId, category.Name, artist.City, artist.State, artist.Phone,
             artist.ProfilePhotoUrl, profile?.Description ?? string.Empty,
-            profile?.Styles ?? [], profile?.Specialties ?? [], profile?.GalleryUrls ?? [], profile?.VideoUrls ?? [],
+            profile?.Styles ?? [], profile?.Specialties ?? [], profile?.EventTypes ?? [],
+            profile?.GalleryUrls ?? [], profile?.VideoUrls ?? [],
             profile?.Slug ?? string.Empty, profile?.IsPublished ?? false,
             avg, count, startingPrice);
     }
@@ -294,7 +301,7 @@ public class ArtistService(IAppDbContext db) : IArtistService
             artist.Id, profile.Slug, artist.ArtisticName, artist.Type.ToString(),
             string.IsNullOrWhiteSpace(artist.ProfilePhotoUrl) ? null : artist.ProfilePhotoUrl,
             artist.CategoryId, category.Name, artist.City, artist.State,
-            profile.Description, profile.Styles, profile.Specialties, profile.GalleryUrls, profile.VideoUrls,
+            profile.Description, profile.Styles, profile.Specialties, profile.EventTypes, profile.GalleryUrls, profile.VideoUrls,
             avg, count, fees.Count > 0 ? fees.Min(f => f.Price) : null,
             fees,
             reviews.Select(r => new ReviewDto(
