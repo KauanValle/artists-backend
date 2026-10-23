@@ -65,6 +65,7 @@ public class DbInitializer(
             Email = email,
             DisplayName = "Administrador",
             Role = UserRole.Admin,
+            SubscriptionTier = SubscriptionTier.Assinante,
             EmailConfirmed = true
         };
         var result = await userManager.CreateAsync(admin, "Admin@123");
