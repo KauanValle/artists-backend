@@ -87,6 +87,57 @@ public class BillingTests
     }
 
     [Fact]
+    public async Task HandleWebhook_SubscriptionCreatedComSessionAninhada_PromoveConta()
+    {
+        var (db, _, activator, service) = Setup();
+        var userId = Guid.NewGuid();
+        db.Billings.Add(new Billing { UserId = userId, CheckoutSessionId = "91d00863-a43b-415f-9ff5-df0a0138bcec", Link = "https://x", Status = "ACTIVE" });
+        db.SaveChanges();
+
+        // Formato real do payload do Asaas: checkoutSession aninhado em subscription.
+        var payload = """
+            {
+              "id": "evt_6561b631fa5580caadd00bbe3b858607&23160416",
+              "event": "SUBSCRIPTION_CREATED",
+              "dateCreated": "2026-10-22 23:56:20",
+              "subscription": {
+                "object": "subscription",
+                "id": "sub_ejas3q20j2lywvcy",
+                "customer": "cus_000009648222",
+                "value": 49.9,
+                "cycle": "MONTHLY",
+                "billingType": "CREDIT_CARD",
+                "status": "ACTIVE",
+                "checkoutSession": "91d00863-a43b-415f-9ff5-df0a0138bcec"
+              }
+            }
+            """;
+
+        var result = await service.HandleWebhookAsync(payload);
+
+        Assert.True(result.Handled);
+        Assert.Equal([userId], activator.ActivatedUsers);
+        var billing = await db.Billings.SingleAsync(b => b.CheckoutSessionId == "91d00863-a43b-415f-9ff5-df0a0138bcec");
+        Assert.Equal("CONFIRMED", billing.Status);
+    }
+
+    [Fact]
+    public async Task HandleWebhook_PaymentConfirmadoComSessionNoPayment_PromoveConta()
+    {
+        var (db, _, activator, service) = Setup();
+        var userId = Guid.NewGuid();
+        db.Billings.Add(new Billing { UserId = userId, CheckoutSessionId = "sessao-payment", Link = "https://x", Status = "ACTIVE" });
+        db.SaveChanges();
+
+        var payload = """{ "event": "PAYMENT_CONFIRMED", "payment": { "id": "pay_1", "checkoutSession": "sessao-payment" } }""";
+
+        var result = await service.HandleWebhookAsync(payload);
+
+        Assert.True(result.Handled);
+        Assert.Equal([userId], activator.ActivatedUsers);
+    }
+
+    [Fact]
     public async Task HandleWebhook_EventoDiferente_Ignora()
     {
         var (db, _, activator, service) = Setup();
