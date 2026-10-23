@@ -97,7 +97,8 @@ public enum NotificationType
     ShowConfirmed = 6,
     UpcomingShow = 7,
     PaymentOverdue = 8,
-    NewReview = 9
+    NewReview = 9,
+    SubscriptionConfirmed = 10
 }
 
 /// <summary>Divisão de cachê percentual ou fixa (PRD §13).</summary>
@@ -111,4 +112,11 @@ public enum ContractorType
 {
     Person = 1,
     Company = 2
+}
+
+/// <summary>Cargo de acesso da conta: gratuito tem funções bloqueadas; assinante tem acesso total.</summary>
+public enum SubscriptionTier
+{
+    Gratuito = 1,
+    Assinante = 2
 }

@@ -31,6 +31,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<Billing> Billings => Set<Billing>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

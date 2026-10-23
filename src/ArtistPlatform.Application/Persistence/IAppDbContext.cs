@@ -31,4 +31,5 @@ public interface IAppDbContext
     DbSet<Review> Reviews { get; }
     DbSet<Favorite> Favorites { get; }
     DbSet<Notification> Notifications { get; }
+    DbSet<Billing> Billings { get; }
 }

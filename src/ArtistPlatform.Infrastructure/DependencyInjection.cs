@@ -1,5 +1,7 @@
 using ArtistPlatform.Application.Interfaces;
 using ArtistPlatform.Application.Persistence;
+using ArtistPlatform.Application.Services;
+using ArtistPlatform.Infrastructure.Asaas;
 using ArtistPlatform.Infrastructure.Auth;
 using ArtistPlatform.Infrastructure.Data;
 using ArtistPlatform.Infrastructure.Identity;
@@ -73,6 +75,11 @@ public static class DependencyInjection
         services.AddSingleton<IDateTimeClock, DateTimeClock>();
         services.AddScoped<IFileStorage, LocalFileStorage>();
         services.AddScoped<DbInitializer>();
+
+        // Assinatura (Asaas): opções do ambiente + cliente HTTP de checkout.
+        services.Configure<AsaasOptions>(configuration.GetSection(AsaasOptions.SectionName));
+        services.AddHttpClient<IAsaasCheckoutClient, AsaasCheckoutClient>();
+        services.AddScoped<IBillingService, BillingService>();
 
         return services;
     }
