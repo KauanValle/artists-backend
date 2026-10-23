@@ -1,9 +1,19 @@
 using ArtistPlatform.Domain.Entities;
 using ArtistPlatform.Domain.Enums;
+using ArtistPlatform.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace ArtistPlatform.Infrastructure.Data;
+
+public class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
+{
+    public void Configure(EntityTypeBuilder<AppUser> builder)
+    {
+        // Contas existentes e novas nascem gratuitas; o webhook da assinatura promove para Assinante.
+        builder.Property(u => u.SubscriptionTier).HasDefaultValue(SubscriptionTier.Gratuito);
+    }
+}
 
 public class ArtistConfiguration : IEntityTypeConfiguration<Artist>
 {
@@ -76,6 +86,19 @@ public class ContractorConfiguration : IEntityTypeConfiguration<Contractor>
         builder.Property(c => c.City).HasMaxLength(120);
         builder.Property(c => c.State).HasMaxLength(2);
         builder.HasIndex(c => c.UserId).IsUnique();
+    }
+}
+
+public class BillingConfiguration : IEntityTypeConfiguration<Billing>
+{
+    public void Configure(EntityTypeBuilder<Billing> builder)
+    {
+        builder.ToTable("Billings");
+        builder.Property(b => b.CheckoutSessionId).HasMaxLength(100).IsRequired();
+        builder.Property(b => b.Link).HasMaxLength(500).IsRequired();
+        builder.Property(b => b.Status).HasMaxLength(50).IsRequired();
+        builder.HasIndex(b => b.CheckoutSessionId).IsUnique();
+        builder.HasIndex(b => b.UserId);
     }
 }
 

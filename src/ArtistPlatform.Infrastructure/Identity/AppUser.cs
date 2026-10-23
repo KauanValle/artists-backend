@@ -10,4 +10,7 @@ public class AppUser : IdentityUser<Guid>
     public UserRole Role { get; set; }
     public Guid? ArtistId { get; set; }
     public Guid? ContractorId { get; set; }
+
+    /// <summary>Cargo de acesso: Gratuito (padrão, funções bloqueadas) ou Assinante (acesso total).</summary>
+    public SubscriptionTier SubscriptionTier { get; set; } = SubscriptionTier.Gratuito;
 }

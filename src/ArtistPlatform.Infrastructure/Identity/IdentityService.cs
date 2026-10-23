@@ -16,7 +16,7 @@ namespace ArtistPlatform.Infrastructure.Identity;
 public class IdentityService(
     UserManager<AppUser> userManager,
     IJwtTokenService jwtTokenService,
-    AppDbContext db) : IIdentityService
+    AppDbContext db) : IIdentityService, ISubscriptionActivator
 {
     public async Task<UserDto> GetCurrentUserAsync(Guid userId)
     {
@@ -189,5 +189,18 @@ public class IdentityService(
     }
 
     private static UserDto ToDto(AppUser user) =>
-        new(user.Id, user.Email ?? string.Empty, user.DisplayName, user.Role, user.ArtistId, user.ContractorId);
+        new(user.Id, user.Email ?? string.Empty, user.DisplayName, user.Role, user.ArtistId, user.ContractorId, user.SubscriptionTier);
+
+    /// <summary>Promoção da conta para Assinante após PAYMENT_CONFIRMED no webhook.</summary>
+    public async Task<bool> ActivateAsync(Guid userId)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new NotFoundException("Usuário não encontrado.");
+        if (user.SubscriptionTier == SubscriptionTier.Assinante)
+            return false;
+
+        user.SubscriptionTier = SubscriptionTier.Assinante;
+        await userManager.UpdateAsync(user);
+        return true;
+    }
 }

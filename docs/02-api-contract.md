@@ -76,6 +76,18 @@ contato gravados nela mesma — sem conversa interna; o artista contata o respon
 |---|---|---|---|
 | POST | `/public/bookings` — `{ artistId, guestName, guestCompanyName?, guestPhone, budget, eventDate, startTime, endTime, location, eventType, estimatedAudience?, message }` | ✖ pública | valida artista publicado, datas, WhatsApp e `budget > 0`; cria REQUESTED e notifica o artista com o contato |
 
+## /api/billing · /api/webhooks (assinatura)
+
+Contas nascem com cargo **Gratuito** (`SubscriptionTier`): artistas gratuitos só acessam auth,
+billing, webhooks, notificações e `GET /artists/me` — o restante responde 403
+(`SubscriptionGateMiddleware`) até o webhook promover a conta para **Assinante**.
+
+| Método | Rota | Auth | Observação |
+|---|---|---|---|
+| POST | `/billing/checkout` | Artista | cria checkout no Asaas (`POST /v3/checkouts`, RECURRENT mensal R$ 49,90, callback URLs do ambiente) e salva id/link/status em `Billings` |
+| GET | `/billing/me` | Artista | última cobrança do usuário |
+| POST | `/webhooks/asaas` | ✖ pública | payload livre; em `event = PAYMENT_CONFIRMED` usa `checkoutSession` para achar a cobrança e promover a conta (+ notificação). Opcionalmente valida header `asaas-access-token` contra `Asaas__WebhookToken` |
+
 ## /api/proposals
 
 | Método | Rota | Auth | Observação |

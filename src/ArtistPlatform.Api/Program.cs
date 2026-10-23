@@ -64,6 +64,7 @@ app.UseStaticFiles();
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<SubscriptionGateMiddleware>();
 app.MapControllers();
 
 await app.Services.InitializeDatabaseAsync();

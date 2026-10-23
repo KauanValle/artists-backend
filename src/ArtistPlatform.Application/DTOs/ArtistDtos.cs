@@ -4,7 +4,7 @@ namespace ArtistPlatform.Application.DTOs;
 
 // ─────────────────────────── Auth ───────────────────────────
 
-public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, Guid? ArtistId, Guid? ContractorId);
+public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, Guid? ArtistId, Guid? ContractorId, SubscriptionTier SubscriptionTier);
 
 public record AuthResponse(string AccessToken, string RefreshToken, DateTime ExpiresAtUtc, UserDto User);
 
