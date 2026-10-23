@@ -25,7 +25,8 @@ public class AsaasCheckoutClient(HttpClient http, IOptions<AsaasOptions> options
             throw new BusinessRuleException("Asaas não configurado: defina Asaas__SuccessUrl, Asaas__CancelUrl e Asaas__ExpiredUrl no ambiente.");
 
         // endDate/nextDueDate: 30 dias a partir de agora (ciclo mensal).
-        var dueDate = DateTime.UtcNow.AddDays(30).ToString("yyyy-MM-dd HH:mm:ss");
+        var dueDate = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        var endDate = DateTime.UtcNow.AddDays(30).ToString("yyyy-MM-dd HH:mm:ss");
 
         var payload = new
         {
@@ -52,7 +53,7 @@ public class AsaasCheckoutClient(HttpClient http, IOptions<AsaasOptions> options
             subscription = new
             {
                 cycle = "MONTHLY",
-                endDate = dueDate,
+                endDate = endDate,
                 nextDueDate = dueDate
             }
         };
