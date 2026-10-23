@@ -31,6 +31,10 @@ public interface IDateTimeClock
 /// <summary>Armazenamento de arquivos (S3 em produção; disco local no MVP).</summary>
 public interface IFileStorage
 {
-    Task<string> SaveAsync(Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Grava o arquivo organizado por dono (uploads/{ownerId}/...) e devolve a URL pública.
+    /// O vínculo arquivo↔usuário fica registrado nas entidades que guardam a URL (ex.: Artist.ProfilePhotoUrl).
+    /// </summary>
+    Task<string> SaveAsync(Guid ownerId, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
     void Delete(string url);
 }

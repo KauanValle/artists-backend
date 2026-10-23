@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ArtistPlatform.Api.Controllers;
 
-/// <summary>Upload de arquivos (foto do perfil, galeria). S3+CloudFront em produção; disco local no MVP.</summary>
+/// <summary>Upload de arquivos (foto do perfil, galeria). Bucket S3 em produção; disco local no MVP.</summary>
 [ApiController]
 [Route("api/uploads")]
 [Authorize]
-public class UploadsController(IFileStorage fileStorage) : ControllerBase
+public class UploadsController(IFileStorage fileStorage, ICurrentUserService currentUser) : ControllerBase
 {
     [HttpPost]
     [RequestSizeLimit(10 * 1024 * 1024)]
@@ -23,7 +23,7 @@ public class UploadsController(IFileStorage fileStorage) : ControllerBase
             return BadRequest(new { error = "Formato não suportado. Use JPEG, PNG, WebP ou MP4." });
 
         await using var stream = file.OpenReadStream();
-        var url = await fileStorage.SaveAsync(stream, file.FileName, file.ContentType);
+        var url = await fileStorage.SaveAsync(currentUser.EnsureAuthenticated(), stream, file.FileName, file.ContentType);
         return Ok(new UploadResultDto(url));
     }
 }

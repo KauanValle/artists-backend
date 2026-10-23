@@ -20,4 +20,10 @@ public class S3Options
     /// Vazio = {EndpointUrl}/{BucketName}.
     /// </summary>
     public string? PublicBaseUrl { get; set; }
+
+    /// <summary>
+    /// ACL aplicada no upload (ex.: "public-read") para tornar o objeto legível publicamente
+    /// mesmo em bucket privado. Vazio = não envia ACL (use quando o bucket já for público).
+    /// </summary>
+    public string? ObjectAcl { get; set; }
 }

@@ -32,17 +32,24 @@ public class S3FileStorage : IFileStorage
             : _options.PublicBaseUrl.TrimEnd('/');
     }
 
-    public async Task<string> SaveAsync(Stream content, string fileName, string contentType, CancellationToken cancellationToken = default)
+    public async Task<string> SaveAsync(Guid ownerId, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default)
     {
-        var key = BuildKey(fileName);
+        var key = BuildKey(ownerId, fileName);
 
-        await _client.PutObjectAsync(new PutObjectRequest
+        var request = new PutObjectRequest
         {
             BucketName = _options.BucketName,
             Key = key,
             InputStream = content,
             ContentType = contentType
-        }, cancellationToken);
+        };
+
+        // Opcional (S3__ObjectAcl = public-read): torna o objeto legível publicamente mesmo
+        // em bucket privado — necessário para a URL salva no banco renderizar no navegador.
+        if (!string.IsNullOrWhiteSpace(_options.ObjectAcl))
+            request.CannedACL = new S3CannedACL(_options.ObjectAcl);
+
+        await _client.PutObjectAsync(request, cancellationToken);
 
         return $"{_publicBaseUrl}/{key}";
     }
@@ -61,14 +68,14 @@ public class S3FileStorage : IFileStorage
         }).GetAwaiter().GetResult();
     }
 
-    /// <summary>Chave única com prefixo uploads/ — preserva a extensão original quando segura.</summary>
-    private static string BuildKey(string fileName)
+    /// <summary>Chave única por dono (uploads/{ownerId}/arquivo) — preserva a extensão quando segura.</summary>
+    private static string BuildKey(Guid ownerId, string fileName)
     {
         var extension = Path.GetExtension(fileName);
         if (extension.Length > 10 || extension.Any(c => !char.IsLetterOrDigit(c) && c != '.'))
             extension = ".bin";
 
-        return $"{KeyPrefix}/{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
+        return $"{KeyPrefix}/{ownerId}/{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
     }
 
     /// <summary>Remove a base pública (ou pega os dois últimos segmentos) para achar a chave do objeto.</summary>

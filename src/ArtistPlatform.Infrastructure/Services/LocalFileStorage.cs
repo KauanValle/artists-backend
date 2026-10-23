@@ -9,9 +9,9 @@ public class LocalFileStorage(IWebHostEnvironment environment) : IFileStorage
 {
     private const string Folder = "uploads";
 
-    public async Task<string> SaveAsync(Stream content, string fileName, string contentType, CancellationToken cancellationToken = default)
+    public async Task<string> SaveAsync(Guid ownerId, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default)
     {
-        var root = Path.Combine(environment.ContentRootPath, "wwwroot", Folder);
+        var root = Path.Combine(environment.ContentRootPath, "wwwroot", Folder, ownerId.ToString());
         Directory.CreateDirectory(root);
 
         var extension = Path.GetExtension(fileName);
@@ -24,14 +24,19 @@ public class LocalFileStorage(IWebHostEnvironment environment) : IFileStorage
         await using var fileStream = File.Create(fullPath);
         await content.CopyToAsync(fileStream, cancellationToken);
 
-        return $"/{Folder}/{safeName}";
+        return $"/{Folder}/{ownerId}/{safeName}";
     }
 
     public void Delete(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return;
-        var name = Path.GetFileName(url);
-        var fullPath = Path.Combine(environment.ContentRootPath, "wwwroot", Folder, name);
+
+        // URL no formato /uploads/{ownerId}/{arquivo} — mantém os dois últimos segmentos.
+        var segments = url.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length < 2) return;
+
+        var relativePath = Path.Combine(segments[^2], segments[^1]);
+        var fullPath = Path.Combine(environment.ContentRootPath, "wwwroot", Folder, relativePath);
         if (File.Exists(fullPath))
             File.Delete(fullPath);
     }
