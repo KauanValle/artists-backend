@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "1WlPp8M8HJU=",
+  "dgSpecHash": "mnGK8+Ct+UI=",
   "success": true,
   "projectFilePath": "C:\\Users\\Kauan Valle\\Documents\\Projects\\Artistas-V2\\artists-backend\\src\\ArtistPlatform.Infrastructure\\ArtistPlatform.Infrastructure.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\Kauan Valle\\.nuget\\packages\\awssdk.core\\3.7.501.1\\awssdk.core.3.7.501.1.nupkg.sha512",
+    "C:\\Users\\Kauan Valle\\.nuget\\packages\\awssdk.s3\\3.7.511.8\\awssdk.s3.3.7.511.8.nupkg.sha512",
     "C:\\Users\\Kauan Valle\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\10.0.12\\microsoft.aspnetcore.authentication.jwtbearer.10.0.12.nupkg.sha512",
     "C:\\Users\\Kauan Valle\\.nuget\\packages\\microsoft.aspnetcore.cryptography.internal\\10.0.12\\microsoft.aspnetcore.cryptography.internal.10.0.12.nupkg.sha512",
     "C:\\Users\\Kauan Valle\\.nuget\\packages\\microsoft.aspnetcore.cryptography.keyderivation\\10.0.12\\microsoft.aspnetcore.cryptography.keyderivation.10.0.12.nupkg.sha512",
