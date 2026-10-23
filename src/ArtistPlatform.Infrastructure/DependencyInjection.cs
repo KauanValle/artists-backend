@@ -69,7 +69,9 @@ public static class DependencyInjection
         services.AddAuthorization();
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
-        services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IdentityService>();
+        services.AddScoped<IIdentityService>(sp => sp.GetRequiredService<IdentityService>());
+        services.AddScoped<ISubscriptionActivator>(sp => sp.GetRequiredService<IdentityService>());
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IUserDirectory, UserDirectory>();
         services.AddSingleton<IDateTimeClock, DateTimeClock>();

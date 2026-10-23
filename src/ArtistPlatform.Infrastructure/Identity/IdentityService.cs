@@ -161,7 +161,8 @@ public class IdentityService(
             UserName = email.Trim().ToLowerInvariant(),
             Email = email.Trim().ToLowerInvariant(),
             DisplayName = displayName.Trim(),
-            Role = role
+            Role = role,
+            SubscriptionTier = SubscriptionTier.Gratuito
         };
 
         var result = await userManager.CreateAsync(user, password);
