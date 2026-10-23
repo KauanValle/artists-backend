@@ -36,5 +36,9 @@ public interface IFileStorage
     /// O vínculo arquivo↔usuário fica registrado nas entidades que guardam a URL (ex.: Artist.ProfilePhotoUrl).
     /// </summary>
     Task<string> SaveAsync(Guid ownerId, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
+
+    /// <summary>Abre o arquivo do dono para leitura (stream + content type); null se não existir.</summary>
+    Task<(Stream Content, string ContentType)?> ReadAsync(Guid ownerId, string fileName);
+
     void Delete(string url);
 }

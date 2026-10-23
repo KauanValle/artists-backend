@@ -1,13 +1,15 @@
 using ArtistPlatform.Application.Interfaces;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
+using System.Text.RegularExpressions;
 
 namespace ArtistPlatform.Infrastructure.Services;
 
-/// <summary>Armazenamento local em wwwroot/uploads. Em produção, trocar por S3 + CloudFront (PRD §30).</summary>
+/// <summary>Armazenamento local em wwwroot/uploads — desenvolvimento sem bucket (produção usa S3).</summary>
 public class LocalFileStorage(IWebHostEnvironment environment) : IFileStorage
 {
     private const string Folder = "uploads";
+
+    private static readonly Regex SafeNamePattern = new(@"^[0-9a-f]{32}\.[a-z0-9]{1,9}$", RegexOptions.Compiled);
 
     public async Task<string> SaveAsync(Guid ownerId, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default)
     {
@@ -24,7 +26,24 @@ public class LocalFileStorage(IWebHostEnvironment environment) : IFileStorage
         await using var fileStream = File.Create(fullPath);
         await content.CopyToAsync(fileStream, cancellationToken);
 
+        // Servido pelo middleware de arquivos estáticos (wwwroot) no desenvolvimento.
         return $"/{Folder}/{ownerId}/{safeName}";
+    }
+
+    public Task<(Stream Content, string ContentType)?> ReadAsync(Guid ownerId, string fileName)
+    {
+        if (!SafeNamePattern.IsMatch(fileName))
+            return Task.FromResult<(Stream, string)?>(null);
+
+        var fullPath = Path.Combine(environment.ContentRootPath, "wwwroot", Folder, ownerId.ToString(), fileName);
+        if (!File.Exists(fullPath))
+            return Task.FromResult<(Stream, string)?>(null);
+
+        var contentTypeProvider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+        if (!contentTypeProvider.TryGetContentType(fileName, out var contentType))
+            contentType = "application/octet-stream";
+
+        return Task.FromResult<(Stream, string)?>((File.OpenRead(fullPath), contentType));
     }
 
     public void Delete(string url)
