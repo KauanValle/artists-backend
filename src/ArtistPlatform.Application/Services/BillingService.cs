@@ -74,7 +74,7 @@ public class BillingService(
             var root = document.RootElement;
 
             var evt = root.TryGetProperty("event", out var eventProp) ? eventProp.GetString() : null;
-            if (!string.Equals(evt, "PAYMENT_CONFIRMED", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(evt, "SUBSCRIPTION_CREATED", StringComparison.OrdinalIgnoreCase))
                 return new WebhookResultDto(false, $"Evento '{evt ?? "(ausente)"}' ignorado — aguardando PAYMENT_CONFIRMED.");
 
             var checkoutSession = root.TryGetProperty("checkoutSession", out var sessionProp) ? sessionProp.GetString() : null;
