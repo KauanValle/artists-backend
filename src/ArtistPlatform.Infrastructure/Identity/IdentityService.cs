@@ -54,7 +54,22 @@ public class IdentityService(
         var slugTaken = await db.ArtistProfiles.AnyAsync(p => p.Slug == slug);
         if (slugTaken)
             slug = $"{slug}-{Guid.NewGuid().ToString("N")[..6]}";
-        db.ArtistProfiles.Add(new ArtistProfile { ArtistId = artist.Id, Slug = slug });
+
+        // Estilos e tipos de evento vêm do wizard de registro (multibox por categoria).
+        List<string> Clean(List<string>? values) => (values ?? [])
+            .Select(v => v.Trim())
+            .Where(v => v.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
+
+        db.ArtistProfiles.Add(new ArtistProfile
+        {
+            ArtistId = artist.Id,
+            Slug = slug,
+            Styles = Clean(request.Styles),
+            EventTypes = Clean(request.EventTypes)
+        });
 
         await db.SaveChangesAsync();
 

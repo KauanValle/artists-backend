@@ -8,7 +8,18 @@ public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, 
 
 public record AuthResponse(string AccessToken, string RefreshToken, DateTime ExpiresAtUtc, UserDto User);
 
-public record RegisterArtistRequest(string Email, string Password, string Name, string ArtisticName, string ArtistType, string City, string State, string Phone, Guid CategoryId);
+public record RegisterArtistRequest(
+    string Email,
+    string Password,
+    string Name,
+    string ArtisticName,
+    string ArtistType,
+    string City,
+    string State,
+    string Phone,
+    Guid CategoryId,
+    List<string>? Styles,
+    List<string>? EventTypes);
 
 public record RegisterContractorRequest(string Email, string Password, string Name, string ContractorType, string Phone);
 
