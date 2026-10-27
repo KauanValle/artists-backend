@@ -152,7 +152,7 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
                              e.StartDateTime >= clock.UtcNow);
 
         return new FinancialSummaryDto(
-            from?.ToDateTime(TimeOnly.MinValue), to?.ToDateTime(TimeOnly.MaxValue),
+            from?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc), to?.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc),
             incomeExpected, incomeReceived,
             incomes.Where(t => t.Status is TransactionStatus.Pending or TransactionStatus.Overdue).Sum(t => t.Amount),
             expenseTotal, expensePaid,

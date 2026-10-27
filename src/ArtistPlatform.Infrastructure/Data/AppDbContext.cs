@@ -48,6 +48,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
+
+    /// <summary>
+    /// Npgsql exige Kind=Utc para colunas "timestamp with time zone". O projeto trata horários
+    /// como naive (sem fuso explícito no cliente), então qualquer DateTime gravado é rotulado UTC.
+    /// </summary>
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+
+            foreach (var property in entry.Properties)
+            {
+                if (property.CurrentValue is DateTime { Kind: not DateTimeKind.Utc } value)
+                    property.CurrentValue = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+            }
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
+    }
 }
 
 public class StringListConverter : ValueConverter<List<string>, string>

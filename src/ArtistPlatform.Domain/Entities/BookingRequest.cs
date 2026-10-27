@@ -32,8 +32,8 @@ public class BookingRequest : BaseEntity
     public bool IsGuest => ContractorId is null;
 
     public Interval ToInterval() => new(
-        EventDate.ToDateTime(StartTime),
-        EventDate.ToDateTime(EndTime));
+        EventDate.ToDateTime(StartTime, DateTimeKind.Utc),
+        EventDate.ToDateTime(EndTime, DateTimeKind.Utc));
 
     /// <summary>Estados de onde a contratação ainda pode evoluir. Rejeitada/expirada/cancelada são terminais (RN018).</summary>
     public bool CanEvolve =>

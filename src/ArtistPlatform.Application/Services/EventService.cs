@@ -33,12 +33,12 @@ public class EventService(IAppDbContext db, ICurrentUserService currentUser, IDa
 
         if (from.HasValue)
         {
-            var fromDt = from.Value.ToDateTime(TimeOnly.MinValue);
+            var fromDt = from.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             query = query.Where(e => e.EndDateTime >= fromDt);
         }
         if (to.HasValue)
         {
-            var toDt = to.Value.ToDateTime(TimeOnly.MaxValue);
+            var toDt = to.Value.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
             query = query.Where(e => e.StartDateTime <= toDt);
         }
         if (type.HasValue) query = query.Where(e => e.Type == type.Value);
@@ -81,7 +81,10 @@ public class EventService(IAppDbContext db, ICurrentUserService currentUser, IDa
         var artistId = currentUser.EnsureArtist();
         Validate(request.Title, request.StartDateTime, request.EndDateTime);
 
-        var interval = new Interval(request.StartDateTime, request.EndDateTime);
+        // Npgsql exige Kind=Utc para timestamptz; o cliente envia horários sem fuso.
+        var start = DateTime.SpecifyKind(request.StartDateTime, DateTimeKind.Utc);
+        var end = DateTime.SpecifyKind(request.EndDateTime, DateTimeKind.Utc);
+        var interval = new Interval(start, end);
         await EnsureNoConflictAsync(artistId, interval, excludeEventId: null);
 
         var ev = new Event
@@ -89,8 +92,8 @@ public class EventService(IAppDbContext db, ICurrentUserService currentUser, IDa
             ArtistId = artistId,
             Title = request.Title.Trim(),
             Type = request.Type,
-            StartDateTime = request.StartDateTime,
-            EndDateTime = request.EndDateTime,
+            StartDateTime = start,
+            EndDateTime = end,
             Location = request.Location ?? string.Empty,
             Description = request.Description ?? string.Empty,
             Status = EventStatus.Scheduled
@@ -108,12 +111,14 @@ public class EventService(IAppDbContext db, ICurrentUserService currentUser, IDa
             ?? throw new NotFoundException("Evento não encontrado.");
 
         Validate(request.Title, request.StartDateTime, request.EndDateTime);
-        await EnsureNoConflictAsync(artistId, new Interval(request.StartDateTime, request.EndDateTime), excludeEventId: id);
+        var start = DateTime.SpecifyKind(request.StartDateTime, DateTimeKind.Utc);
+        var end = DateTime.SpecifyKind(request.EndDateTime, DateTimeKind.Utc);
+        await EnsureNoConflictAsync(artistId, new Interval(start, end), excludeEventId: id);
 
         ev.Title = request.Title.Trim();
         ev.Type = request.Type;
-        ev.StartDateTime = request.StartDateTime;
-        ev.EndDateTime = request.EndDateTime;
+        ev.StartDateTime = start;
+        ev.EndDateTime = end;
         ev.Location = request.Location ?? string.Empty;
         ev.Description = request.Description ?? string.Empty;
         ev.Status = request.Status;
@@ -281,8 +286,8 @@ public class EventService(IAppDbContext db, ICurrentUserService currentUser, IDa
         foreach (var row in blockedRows)
         {
             var ri = new Interval(
-                row.Date.ToDateTime(row.StartTime),
-                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime));
+                row.Date.ToDateTime(row.StartTime, DateTimeKind.Utc),
+                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime, DateTimeKind.Utc));
             if (ri.Overlaps(interval))
                 throw new BusinessRuleException("RN009: o horário conflita com um bloqueio de disponibilidade.");
         }

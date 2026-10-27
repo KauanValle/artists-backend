@@ -184,7 +184,7 @@ public class ArtistService(IAppDbContext db) : IArtistService
         Interval? requested = null;
         if (query.Date.HasValue && query.StartTime.HasValue && query.DurationMinutes is > 0)
         {
-            var start = query.Date.Value.ToDateTime(query.StartTime.Value);
+            var start = query.Date.Value.ToDateTime(query.StartTime.Value, DateTimeKind.Utc);
             requested = new Interval(start, start.AddMinutes(query.DurationMinutes.Value));
         }
 
@@ -199,8 +199,8 @@ public class ArtistService(IAppDbContext db) : IArtistService
             foreach (var row in blockedRows)
             {
                 var interval = new Interval(
-                    row.Date.ToDateTime(row.StartTime),
-                    row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime));
+                row.Date.ToDateTime(row.StartTime, DateTimeKind.Utc),
+                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime, DateTimeKind.Utc));
                 if (interval.Overlaps(requested))
                     blockedArtistIds.Add(row.ArtistId);
             }

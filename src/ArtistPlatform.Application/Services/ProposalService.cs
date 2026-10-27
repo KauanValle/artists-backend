@@ -155,8 +155,8 @@ public class ProposalService(
         foreach (var row in blocked)
         {
             var ri = new Interval(
-                row.Date.ToDateTime(row.StartTime),
-                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime));
+                row.Date.ToDateTime(row.StartTime, DateTimeKind.Utc),
+                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime, DateTimeKind.Utc));
             if (ri.Overlaps(interval))
                 throw new BusinessRuleException("RN017: o horário está bloqueado na agenda do artista.");
         }

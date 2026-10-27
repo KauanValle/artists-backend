@@ -36,8 +36,8 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         if (!request.IsAllDay && request.EndTime <= request.StartTime)
             throw new ValidationException("O horário final deve ser maior que o inicial.");
 
-        var start = request.Date.ToDateTime(request.IsAllDay ? TimeOnly.MinValue : request.StartTime);
-        var end = request.Date.ToDateTime(request.IsAllDay ? new TimeOnly(23, 59, 59) : request.EndTime);
+        var start = request.Date.ToDateTime(request.IsAllDay ? TimeOnly.MinValue : request.StartTime, DateTimeKind.Utc);
+        var end = request.Date.ToDateTime(request.IsAllDay ? new TimeOnly(23, 59, 59) : request.EndTime, DateTimeKind.Utc);
         await EnsureNoAgendaConflictAsync(artistId, new Interval(start, end), excludeAvailabilityId: null);
 
         var row = new ArtistAvailability
@@ -65,8 +65,8 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         if (!request.IsAllDay && request.EndTime <= request.StartTime)
             throw new ValidationException("O horário final deve ser maior que o inicial.");
 
-        var start = request.Date.ToDateTime(request.IsAllDay ? TimeOnly.MinValue : request.StartTime);
-        var end = request.Date.ToDateTime(request.IsAllDay ? new TimeOnly(23, 59, 59) : request.EndTime);
+        var start = request.Date.ToDateTime(request.IsAllDay ? TimeOnly.MinValue : request.StartTime, DateTimeKind.Utc);
+        var end = request.Date.ToDateTime(request.IsAllDay ? new TimeOnly(23, 59, 59) : request.EndTime, DateTimeKind.Utc);
         await EnsureNoAgendaConflictAsync(artistId, new Interval(start, end), excludeAvailabilityId: id);
 
         row.Date = request.Date;
@@ -109,8 +109,8 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         foreach (var row in rows)
         {
             var ri = new Interval(
-                row.Date.ToDateTime(row.StartTime),
-                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime));
+                row.Date.ToDateTime(row.StartTime, DateTimeKind.Utc),
+                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime, DateTimeKind.Utc));
             if (ri.Overlaps(interval))
                 throw new BusinessRuleException("RN009: esse horário conflita com outro intervalo de disponibilidade.");
         }

@@ -255,8 +255,8 @@ public class BookingService(
         foreach (var row in blockedRows)
         {
             var blockedInterval = new Interval(
-                row.Date.ToDateTime(row.StartTime),
-                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime));
+                row.Date.ToDateTime(row.StartTime, DateTimeKind.Utc),
+                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime, DateTimeKind.Utc));
             if (blockedInterval.Overlaps(interval))
                 throw new BusinessRuleException("RN017: o horário está bloqueado na sua agenda.");
         }

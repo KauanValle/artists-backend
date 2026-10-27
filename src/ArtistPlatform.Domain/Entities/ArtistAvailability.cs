@@ -18,6 +18,6 @@ public class ArtistAvailability : BaseEntity
     public string? Note { get; set; }
 
     public Interval ToInterval() => new(
-        Date.ToDateTime(StartTime),
-        Date.ToDateTime(IsAllDay ? new TimeOnly(23, 59, 59) : EndTime));
+        Date.ToDateTime(StartTime, DateTimeKind.Utc),
+        Date.ToDateTime(IsAllDay ? new TimeOnly(23, 59, 59) : EndTime, DateTimeKind.Utc));
 }
