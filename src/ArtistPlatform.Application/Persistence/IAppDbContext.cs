@@ -32,4 +32,5 @@ public interface IAppDbContext
     DbSet<Favorite> Favorites { get; }
     DbSet<Notification> Notifications { get; }
     DbSet<Billing> Billings { get; }
+    DbSet<SignatureContract> SignatureContracts { get; }
 }

@@ -93,6 +93,7 @@ public static class DependencyInjection
             services.AddScoped<IFileStorage, LocalFileStorage>();
         }
 
+        services.AddScoped<IContractService, ContractService>();
         services.AddScoped<DbInitializer>();
 
         // Assinatura (Asaas): opções do ambiente + cliente HTTP de checkout.

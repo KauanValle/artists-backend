@@ -89,6 +89,31 @@ public class ContractorConfiguration : IEntityTypeConfiguration<Contractor>
     }
 }
 
+public class SignatureContractConfiguration : IEntityTypeConfiguration<SignatureContract>
+{
+    public void Configure(EntityTypeBuilder<SignatureContract> builder)
+    {
+        builder.ToTable("SignatureContracts");
+        builder.Property(c => c.ContractText).IsRequired();
+        builder.Property(c => c.ContentHash).HasMaxLength(64).IsRequired();
+        builder.Property(c => c.ArtistName).HasMaxLength(200).IsRequired();
+        builder.Property(c => c.ArtistDocument).HasMaxLength(40);
+        builder.Property(c => c.ArtistAddress).HasMaxLength(300);
+        builder.Property(c => c.ArtistContact).HasMaxLength(200);
+        builder.Property(c => c.ContractorName).HasMaxLength(200);
+        builder.Property(c => c.ContractorDocument).HasMaxLength(40);
+        builder.Property(c => c.ContractorRepresentative).HasMaxLength(200);
+        builder.Property(c => c.ContractorAddress).HasMaxLength(300);
+        builder.Property(c => c.ContractorContact).HasMaxLength(200);
+        builder.Property(c => c.PaymentTerms).HasMaxLength(500);
+        builder.Property(c => c.ArtistSignedName).HasMaxLength(200);
+        builder.Property(c => c.ArtistIp).HasMaxLength(64);
+        builder.Property(c => c.ArtistUserAgent).HasMaxLength(400);
+        builder.HasIndex(c => c.BookingRequestId).IsUnique();
+        builder.HasIndex(c => c.ArtistId);
+    }
+}
+
 public class BillingConfiguration : IEntityTypeConfiguration<Billing>
 {
     public void Configure(EntityTypeBuilder<Billing> builder)
