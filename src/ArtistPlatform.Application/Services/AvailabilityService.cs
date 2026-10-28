@@ -37,9 +37,9 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         if (!request.IsAllDay && request.EndTime <= request.StartTime)
             throw new ValidationException("O horário final deve ser maior que o inicial.");
 
-        var start = request.Date.ToDateTime(request.IsAllDay ? TimeOnly.MinValue : request.StartTime, DateTimeKind.Utc);
-        var end = request.Date.ToDateTime(request.IsAllDay ? new TimeOnly(23, 59, 59) : request.EndTime, DateTimeKind.Utc);
-        await EnsureNoAgendaConflictAsync(artistId, new Interval(start, end), excludeAvailabilityId: null);
+        // O dia específico sobrescreve o padrão (ex.: "fechar" um dia de trabalho).
+        await OverrideOverlappingIntervalsAsync(artistId, request, excludeAvailabilityId: null);
+        await EnsureNoAgendaConflictAsync(artistId, BuildInterval(request), excludeAvailabilityId: null);
 
         var row = new ArtistAvailability
         {
@@ -135,9 +135,8 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         if (!request.IsAllDay && request.EndTime <= request.StartTime)
             throw new ValidationException("O horário final deve ser maior que o inicial.");
 
-        var start = request.Date.ToDateTime(request.IsAllDay ? TimeOnly.MinValue : request.StartTime, DateTimeKind.Utc);
-        var end = request.Date.ToDateTime(request.IsAllDay ? new TimeOnly(23, 59, 59) : request.EndTime, DateTimeKind.Utc);
-        await EnsureNoAgendaConflictAsync(artistId, new Interval(start, end), excludeAvailabilityId: id);
+        await OverrideOverlappingIntervalsAsync(artistId, request, excludeAvailabilityId: id);
+        await EnsureNoAgendaConflictAsync(artistId, BuildInterval(request), excludeAvailabilityId: id);
 
         row.Date = request.Date;
         row.StartTime = request.IsAllDay ? TimeOnly.MinValue : request.StartTime;
@@ -158,6 +157,45 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
             ?? throw new NotFoundException("Disponibilidade não encontrada.");
         db.ArtistAvailabilities.Remove(row);
         await db.SaveChangesAsync();
+    }
+
+    private static TimeOnly EffectiveStart(SaveAvailabilityRequest request) =>
+        request.IsAllDay ? TimeOnly.MinValue : request.StartTime;
+
+    private static TimeOnly EffectiveEnd(SaveAvailabilityRequest request) =>
+        request.IsAllDay ? new TimeOnly(23, 59, 59) : request.EndTime;
+
+    private static Interval BuildInterval(SaveAvailabilityRequest request) =>
+        new(request.Date.ToDateTime(EffectiveStart(request), DateTimeKind.Utc),
+            request.Date.ToDateTime(EffectiveEnd(request), DateTimeKind.Utc));
+
+    /// <summary>
+    /// Dia específico sobrescreve o padrão: marcar INDISPONÍVEL remove qualquer intervalo que
+    /// conflite no dia (ex.: "fechar" um dia de trabalho); abrir/ajustar remove apenas bloqueios
+    /// de indisponibilidade. Conflitos com eventos e com intervalos do mesmo status seguem a RN009.
+    /// </summary>
+    private async Task OverrideOverlappingIntervalsAsync(Guid artistId, SaveAvailabilityRequest request, Guid? excludeAvailabilityId)
+    {
+        var effStart = EffectiveStart(request);
+        var effEnd = EffectiveEnd(request);
+
+        var overlapping = await db.ArtistAvailabilities
+            .Where(a => a.ArtistId == artistId &&
+                        a.Date == request.Date &&
+                        a.StartTime < effEnd && a.EndTime > effStart &&
+                        (excludeAvailabilityId == null || a.Id != excludeAvailabilityId))
+            .ToListAsync();
+        if (overlapping.Count == 0) return;
+
+        var toRemove = request.Status == AvailabilityStatus.Unavailable
+            ? overlapping
+            : overlapping.Where(a => a.Status == AvailabilityStatus.Unavailable).ToList();
+
+        if (toRemove.Count > 0)
+        {
+            db.ArtistAvailabilities.RemoveRange(toRemove);
+            await db.SaveChangesAsync();
+        }
     }
 
     /// <summary>RN009: sem conflito de agenda com eventos e com outros bloqueios do mesmo dia.</summary>

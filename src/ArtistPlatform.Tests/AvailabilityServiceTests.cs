@@ -110,11 +110,67 @@ public class AvailabilityServiceTests
                 Date = new DateOnly(2026, 12, 20),
                 StartTime = new TimeOnly(10, 0),
                 EndTime = new TimeOnly(12, 0),
-                Status = AvailabilityStatus.Unavailable
+                Status = AvailabilityStatus.Available
             });
         });
 
         await Assert.ThrowsAsync<BusinessRuleException>(
             () => service.CreateAsync(Guid.Empty, Request(new DateOnly(2026, 12, 20), "11:00", "13:00")));
+    }
+
+    /// <summary>Dia específico INDISPONÍVEL sobrescreve o dia de trabalho: remove o intervalo
+    /// conflitante em vez de lançar RN009.</summary>
+    [Fact]
+    public async Task Create_IndisponivelSobreDiaDeTrabalho_Sobrescreve()
+    {
+        var artistId = Guid.NewGuid();
+        var (db, user, service) = Arrange(artistId, db =>
+        {
+            db.ArtistAvailabilities.Add(new ArtistAvailability
+            {
+                ArtistId = artistId,
+                Date = new DateOnly(2026, 12, 20),
+                StartTime = new TimeOnly(10, 0),
+                EndTime = new TimeOnly(12, 0),
+                Status = AvailabilityStatus.Available
+            });
+        });
+
+        var request = new SaveAvailabilityRequest(
+            Date: new DateOnly(2026, 12, 20),
+            StartTime: TimeOnly.Parse("11:00"),
+            EndTime: TimeOnly.Parse("13:00"),
+            IsAllDay: false,
+            Status: AvailabilityStatus.Unavailable,
+            Note: null);
+
+        var rows = await service.CreateAsync(Guid.Empty, request);
+
+        // O intervalo de trabalho conflitante foi removido; restou só o bloqueio do dia.
+        var row = Assert.Single(rows);
+        Assert.Equal(AvailabilityStatus.Unavailable, row.Status);
+    }
+
+    /// <summary>Reabrir um dia (disponível sobre bloqueio de indisponibilidade) também sobrescreve.</summary>
+    [Fact]
+    public async Task Create_DisponivelSobreBloqueioDeIndisponibilidade_Sobrescreve()
+    {
+        var artistId = Guid.NewGuid();
+        var (db, user, service) = Arrange(artistId, db =>
+        {
+            db.ArtistAvailabilities.Add(new ArtistAvailability
+            {
+                ArtistId = artistId,
+                Date = new DateOnly(2026, 12, 20),
+                StartTime = new TimeOnly(10, 0),
+                EndTime = new TimeOnly(12, 0),
+                Status = AvailabilityStatus.Unavailable
+            });
+        });
+
+        var rows = await service.CreateAsync(Guid.Empty, Request(new DateOnly(2026, 12, 20), "11:00", "13:00"));
+
+        var row = Assert.Single(rows);
+        Assert.Equal(AvailabilityStatus.Available, row.Status);
     }
 }
