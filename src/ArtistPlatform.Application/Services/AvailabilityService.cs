@@ -13,6 +13,7 @@ public interface IAvailabilityService
 {
     Task<List<AvailabilityDto>> ListByArtistAsync(Guid artistId, DateOnly? from, DateOnly? to);
     Task<List<AvailabilityDto>> CreateAsync(Guid userId, SaveAvailabilityRequest request);
+    Task<BatchAvailabilityResultDto> CreateBatchAsync(Guid userId, SaveAvailabilityBatchRequest request);
     Task<AvailabilityDto> UpdateAsync(Guid userId, Guid id, SaveAvailabilityRequest request);
     Task DeleteAsync(Guid userId, Guid id);
 }
@@ -54,6 +55,75 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         await db.SaveChangesAsync();
 
         return await ListByArtistAsync(artistId, request.Date, request.Date);
+    }
+
+    /// <summary>
+    /// Criação em lote (dias de trabalho padrão e datas marcadas na agenda visual):
+    /// datas que já possuem disponibilidade são ignoradas, e dias com show confirmado
+    /// na agenda são pulados (RN009 sem quebrar o lote).
+    /// </summary>
+    public async Task<BatchAvailabilityResultDto> CreateBatchAsync(Guid userId, SaveAvailabilityBatchRequest request)
+    {
+        var artistId = currentUser.EnsureArtist();
+
+        var dates = (request.Dates ?? []).Distinct().OrderBy(d => d).ToList();
+        if (dates.Count == 0)
+            throw new ValidationException("Selecione ao menos uma data.");
+        if (!request.IsAllDay && request.EndTime <= request.StartTime)
+            throw new ValidationException("O horário final deve ser maior que o inicial.");
+
+        // Datas que já possuem disponibilidade registrada — não duplica.
+        var existingDates = (await db.ArtistAvailabilities.AsNoTracking()
+                .Where(a => a.ArtistId == artistId && dates.Contains(a.Date))
+                .Select(a => a.Date)
+                .ToListAsync())
+            .ToHashSet();
+
+        // Eventos ativos no intervalo do lote — checados por dia em memória.
+        var rangeStart = dates.First().ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var rangeEnd = dates.Last().ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+        var activeEvents = await db.Events.AsNoTracking()
+            .Where(e => e.ArtistId == artistId &&
+                        (e.Status == EventStatus.Scheduled || e.Status == EventStatus.Confirmed) &&
+                        e.StartDateTime < rangeEnd && e.EndDateTime > rangeStart)
+            .Select(e => new { e.StartDateTime, e.EndDateTime })
+            .ToListAsync();
+
+        int created = 0, skippedExisting = 0, skippedConflict = 0;
+
+        foreach (var date in dates)
+        {
+            if (existingDates.Contains(date))
+            {
+                skippedExisting++;
+                continue;
+            }
+
+            var interval = new Interval(
+                date.ToDateTime(request.IsAllDay ? TimeOnly.MinValue : request.StartTime, DateTimeKind.Utc),
+                date.ToDateTime(request.IsAllDay ? new TimeOnly(23, 59, 59) : request.EndTime, DateTimeKind.Utc));
+
+            if (activeEvents.Any(ev => ev.StartDateTime < interval.End && ev.EndDateTime > interval.Start))
+            {
+                skippedConflict++;
+                continue;
+            }
+
+            db.ArtistAvailabilities.Add(new ArtistAvailability
+            {
+                ArtistId = artistId,
+                Date = date,
+                StartTime = request.StartTime,
+                EndTime = request.EndTime,
+                IsAllDay = request.IsAllDay,
+                Status = request.Status,
+                Note = request.Note
+            });
+            created++;
+        }
+
+        await db.SaveChangesAsync();
+        return new BatchAvailabilityResultDto(created, skippedExisting, skippedConflict);
     }
 
     public async Task<AvailabilityDto> UpdateAsync(Guid userId, Guid id, SaveAvailabilityRequest request)

@@ -27,6 +27,11 @@ public class MyAvailabilityController(IAvailabilityService availabilityService) 
     public async Task<ActionResult<List<AvailabilityDto>>> Create(SaveAvailabilityRequest request)
         => Ok(await availabilityService.CreateAsync(Guid.Empty, request));
 
+    /// <summary>Criação em lote: vários dias de uma vez (dias de trabalho padrão / agenda visual).</summary>
+    [HttpPost("batch")]
+    public async Task<ActionResult<BatchAvailabilityResultDto>> CreateBatch(SaveAvailabilityBatchRequest request)
+        => Ok(await availabilityService.CreateBatchAsync(Guid.Empty, request));
+
     /// <summary>Atualiza um intervalo.</summary>
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<AvailabilityDto>> Update(Guid id, SaveAvailabilityRequest request)

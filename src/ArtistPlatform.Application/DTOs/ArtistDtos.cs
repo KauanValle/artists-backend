@@ -135,3 +135,14 @@ public record SaveFeeRequest(int DurationMinutes, decimal Price, string? Descrip
 public record AvailabilityDto(Guid Id, Guid ArtistId, DateOnly Date, TimeOnly StartTime, TimeOnly EndTime, bool IsAllDay, AvailabilityStatus Status, string? Note);
 
 public record SaveAvailabilityRequest(DateOnly Date, TimeOnly StartTime, TimeOnly EndTime, bool IsAllDay, AvailabilityStatus Status, string? Note);
+
+/// <summary>Criação em lote: vários dias de uma vez (dias de trabalho padrão / datas da agenda visual).</summary>
+public record SaveAvailabilityBatchRequest(
+    List<DateOnly> Dates,
+    TimeOnly StartTime,
+    TimeOnly EndTime,
+    bool IsAllDay,
+    AvailabilityStatus Status,
+    string? Note);
+
+public record BatchAvailabilityResultDto(int Created, int SkippedExisting, int SkippedEventConflict);
