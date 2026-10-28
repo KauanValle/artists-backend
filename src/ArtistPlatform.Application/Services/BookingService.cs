@@ -36,6 +36,9 @@ public class BookingService(
         if (request.EventDate < DateOnly.FromDateTime(DateTime.Today))
             throw new ValidationException("A data do evento não pode estar no passado.");
 
+        // RN009: não é possível solicitar o artista em dia/horário que ele bloqueou na agenda.
+        await EnsureArtistNotBlockedAsync(request.ArtistId, request.EventDate, request.StartTime, request.EndTime);
+
         var artist = await db.Artists.AsNoTracking().FirstOrDefaultAsync(a => a.Id == request.ArtistId)
             ?? throw new NotFoundException("Artista não encontrado.");
         var artistUser = await db.Artists.AsNoTracking().Where(a => a.Id == request.ArtistId).Select(a => a.UserId).FirstAsync();
@@ -101,6 +104,9 @@ public class BookingService(
         if (!isPublished)
             throw new NotFoundException("Artista não encontrado.");
 
+        // RN009: não é possível solicitar o artista em dia/horário que ele bloqueou na agenda.
+        await EnsureArtistNotBlockedAsync(request.ArtistId, request.EventDate, request.StartTime, request.EndTime);
+
         var booking = new BookingRequest
         {
             ArtistId = request.ArtistId,
@@ -129,6 +135,19 @@ public class BookingService(
             $"/shows/{booking.Id}");
 
         return await ToDtoAsync(booking, artist.ArtisticName, booking.GuestName);
+    }
+
+    /// <summary>RN009: solicitação não pode cair em dia/horário bloqueado pelo artista (indisponível/pré-reservado).</summary>
+    private async Task EnsureArtistNotBlockedAsync(Guid artistId, DateOnly eventDate, TimeOnly startTime, TimeOnly endTime)
+    {
+        var hasBlock = await db.ArtistAvailabilities.AsNoTracking()
+            .AnyAsync(a => a.ArtistId == artistId &&
+                           a.Status != AvailabilityStatus.Available &&
+                           a.Date == eventDate &&
+                           a.StartTime < endTime &&
+                           a.EndTime > startTime);
+        if (hasBlock)
+            throw new BusinessRuleException("RN009: o artista está indisponível nessa data e horário.");
     }
 
     /// <summary>Lista com abas por status (PRD §10), filtrada pelo papel do usuário autenticado.</summary>

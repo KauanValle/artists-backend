@@ -119,6 +119,26 @@ public class GuestBookingTests
     }
 
     [Fact]
+    public async Task CreateGuest_EmDiaBloqueado_RN009_Lanca()
+    {
+        var (db, _, service, artist) = Seed();
+        db.ArtistAvailabilities.Add(new ArtistAvailability
+        {
+            ArtistId = artist.Id,
+            Date = new DateOnly(2027, 3, 10),
+            StartTime = new TimeOnly(18, 0),
+            EndTime = new TimeOnly(23, 0),
+            Status = AvailabilityStatus.Unavailable
+        });
+        db.SaveChanges();
+
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() => service.CreateGuestAsync(Request(artist.Id)));
+
+        Assert.Contains("indisponível", ex.Message);
+        Assert.Equal(0, await db.BookingRequests.CountAsync());
+    }
+
+    [Fact]
     public async Task Accept_SolicitacaoDeVisitante_ConfirmaEventoSemContratante()
     {
         var (db, _, service, artist) = Seed();
