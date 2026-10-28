@@ -18,6 +18,12 @@ public interface IContractService
 
     /// <summary>Assina o contrato com evidências (hash do texto, IP, user-agent, data/hora UTC).</summary>
     Task<ArtistContractDto> SignAsync(Guid bookingId, SignArtistContractRequest request, string? ip, string? userAgent);
+
+    /// <summary>Visualização pública pelo token do contratante.</summary>
+    Task<ArtistContractDto> GetByTokenAsync(string token);
+
+    /// <summary>Assinatura eletrônica do contratante pelo link público (com evidências).</summary>
+    Task<ArtistContractDto> SignByContractorAsync(string token, SignContractorRequest request, string? ip, string? userAgent);
 }
 
 public class ContractService(IAppDbContext db, ICurrentUserService currentUser, IDateTimeClock clock) : IContractService
@@ -53,32 +59,76 @@ public class ContractService(IAppDbContext db, ICurrentUserService currentUser, 
         var text = ArtistContractTextBuilder.Build(data);
         var hash = Hash(text);
 
-        return new ArtistContractDto(
-            bookingId,
-            Signed: existing is not null,
-            ContractText: existing?.ContractText ?? text,
-            ContentHash: existing?.ContentHash ?? hash,
-            ArtistName: artist.Name,
-            ArtisticName: artist.ArtisticName,
-            ArtistDocument: data.ArtistDocument,
-            ArtistAddress: data.ArtistAddress,
-            ArtistContact: data.ArtistContact,
-            ContractorName: data.ContractorName,
-            ContractorDocument: data.ContractorDocument,
-            ContractorRepresentative: data.ContractorRepresentative,
-            ContractorAddress: data.ContractorAddress,
-            ContractorContact: data.ContractorContact,
-            PaymentTerms: data.PaymentTerms,
-            EventDate: booking.EventDate.ToString("yyyy-MM-dd"),
-            StartTime: booking.StartTime.ToString(@"hh\:mm"),
-            EndTime: booking.EndTime.ToString(@"hh\:mm"),
-            Location: booking.Location,
-            CacheValue: booking.Budget,
-            SignatureData: existing?.ArtistSignatureData,
-            SignedName: existing?.ArtistSignedName,
-            SignedAtUtc: existing?.ArtistSignedAtUtc,
-            SignedIp: existing?.ArtistIp,
-            SignedUserAgent: existing?.ArtistUserAgent);
+        return ToDto(booking, artist, existing, text, hash, existing?.ContractorAccessToken, contractorName, contractorContact);
+    }
+
+    public async Task<ArtistContractDto> GetByTokenAsync(string token)
+    {
+        var row = await db.SignatureContracts.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ContractorAccessToken == token)
+            ?? throw new NotFoundException("Contrato não encontrado ou link inválido.");
+
+        var booking = await LoadBookingAsync(row.BookingRequestId);
+        var artist = await db.Artists.AsNoTracking().FirstAsync(a => a.Id == booking.ArtistId);
+        return ToDto(booking, artist, row, row.ContractText, row.ContentHash, row.ContractorAccessToken, row.ContractorName, row.ContractorContact);
+    }
+
+    public async Task<ArtistContractDto> SignByContractorAsync(string token, SignContractorRequest request, string? ip, string? userAgent)
+    {
+        var row = await db.SignatureContracts.FirstOrDefaultAsync(c => c.ContractorAccessToken == token)
+            ?? throw new NotFoundException("Contrato não encontrado ou link inválido.");
+        if (row.ContractorSignedAtUtc is not null)
+            throw new BusinessRuleException("Este contrato já foi assinado pelo contratante.");
+        if (row.ArtistSignedAtUtc is null)
+            throw new BusinessRuleException("Este contrato ainda não foi assinado pelo artista.");
+        if (string.IsNullOrWhiteSpace(request.SignedName))
+            throw new ValidationException("Informe o nome completo do contratante.");
+        if (string.IsNullOrWhiteSpace(request.SignedDocument))
+            throw new ValidationException("Informe o CPF/CNPJ do contratante.");
+        if (string.IsNullOrWhiteSpace(request.SignedAddress))
+            throw new ValidationException("Informe o endereço do contratante.");
+        if (string.IsNullOrWhiteSpace(request.SignedContact))
+            throw new ValidationException("Informe o telefone/e-mail do contratante.");
+        if (string.IsNullOrWhiteSpace(request.SignatureData) || !request.SignatureData.StartsWith("data:image/png;base64,", StringComparison.Ordinal))
+            throw new ValidationException("Assinatura inválida: desenhe sua assinatura antes de salvar.");
+        if (request.SignatureData.Length > 500_000)
+            throw new ValidationException("Assinatura muito grande. Desenhe novamente.");
+
+        var booking = await db.BookingRequests.FirstAsync(b => b.Id == row.BookingRequestId);
+        var artist = await db.Artists.AsNoTracking().FirstAsync(a => a.Id == booking.ArtistId);
+
+        // Regenera o texto com os dados do contratante preenchidos — a versão final
+        // do documento traz documento, endereço e contato de quem assina por último.
+        var data = new ArtistContractTextBuilder.ContractData(
+            artist.ArtisticName,
+            row.ArtistDocument,
+            row.ArtistAddress,
+            row.ArtistContact,
+            request.SignedName.Trim(),
+            request.SignedDocument.Trim(),
+            request.Representative?.Trim() ?? string.Empty,
+            request.SignedAddress.Trim(),
+            request.SignedContact.Trim(),
+            row.PaymentTerms,
+            FormatDateBr(booking.EventDate),
+            booking.StartTime.ToString(@"hh\:mm"),
+            DurationLabel(booking.StartTime, booking.EndTime),
+            booking.Location,
+            booking.Budget.HasValue ? FormatMoney(booking.Budget.Value) : string.Empty);
+
+        var text = ArtistContractTextBuilder.Build(data);
+
+        row.ContractorSignedName = request.SignedName.Trim();
+        row.ContractorSignedDocument = request.SignedDocument.Trim();
+        row.ContractorSignatureData = request.SignatureData;
+        row.ContractorSignedAtUtc = clock.UtcNow;
+        row.ContractorIp = ip;
+        row.ContractorUserAgent = userAgent;
+        row.ContractorContentHash = Hash(text);
+        row.ContractText = text;
+        await db.SaveChangesAsync();
+
+        return ToDto(booking, artist, row, row.ContractText, row.ContractorContentHash ?? row.ContentHash, row.ContractorAccessToken, row.ContractorName, row.ContractorContact);
     }
 
     public async Task<ArtistContractDto> SignAsync(Guid bookingId, SignArtistContractRequest request, string? ip, string? userAgent)
@@ -87,8 +137,8 @@ public class ContractService(IAppDbContext db, ICurrentUserService currentUser, 
         var artistId = currentUser.EnsureArtist();
         if (booking.ArtistId != artistId && currentUser.Role != UserRole.Admin)
             throw new ForbiddenException("Apenas o artista responsável pode assinar o contrato.");
-        if (booking.Status is not (BookingStatus.Confirmed or BookingStatus.Completed))
-            throw new BusinessRuleException("O contrato é gerado para contratações confirmadas.");
+        if (booking.Status is not BookingStatus.Confirmed)
+            throw new BusinessRuleException("O contrato é gerado apenas para contratações confirmadas.");
 
         if (string.IsNullOrWhiteSpace(request.ArtistDocument))
             throw new ValidationException("Informe o CPF/CNPJ do artista.");
@@ -155,34 +205,65 @@ public class ContractService(IAppDbContext db, ICurrentUserService currentUser, 
         existing.ArtistSignedAtUtc = clock.UtcNow;
         existing.ArtistIp = ip;
         existing.ArtistUserAgent = userAgent;
+        // Token de acesso do contratante: gerado na primeira assinatura do artista.
+        existing.ContractorAccessToken ??= Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+
+        // O texto foi regenerado: o contratante precisa assinar a versão atual pelo mesmo link.
+        existing.ContractorSignedName = string.Empty;
+        existing.ContractorSignedDocument = string.Empty;
+        existing.ContractorSignatureData = null;
+        existing.ContractorSignedAtUtc = null;
+        existing.ContractorIp = null;
+        existing.ContractorUserAgent = null;
+        existing.ContractorContentHash = null;
         await db.SaveChangesAsync();
 
+        return ToDto(booking, artist, existing, text, hash, existing?.ContractorAccessToken, contractorName, contractorContact);
+    }
+
+    private static ArtistContractDto ToDto(
+        BookingRequest booking,
+        Artist artist,
+        SignatureContract? row,
+        string text,
+        string hash,
+        string? contractorAccessToken,
+        string fallbackName,
+        string fallbackContact)
+    {
         return new ArtistContractDto(
-            bookingId,
-            Signed: true,
-            ContractText: text,
-            ContentHash: hash,
+            booking.Id,
+            Signed: row is not null,
+            ContractText: row?.ContractText ?? text,
+            ContentHash: row?.ContentHash ?? hash,
             ArtistName: artist.Name,
             ArtisticName: artist.ArtisticName,
-            ArtistDocument: data.ArtistDocument,
-            ArtistAddress: data.ArtistAddress,
-            ArtistContact: data.ArtistContact,
-            ContractorName: data.ContractorName,
-            ContractorDocument: data.ContractorDocument,
-            ContractorRepresentative: data.ContractorRepresentative,
-            ContractorAddress: data.ContractorAddress,
-            ContractorContact: data.ContractorContact,
-            PaymentTerms: data.PaymentTerms,
+            ArtistDocument: row?.ArtistDocument ?? string.Empty,
+            ArtistAddress: row?.ArtistAddress ?? string.Empty,
+            ArtistContact: row?.ArtistContact ?? artist.Phone,
+            ContractorName: row?.ContractorName ?? fallbackName,
+            ContractorDocument: row?.ContractorDocument ?? string.Empty,
+            ContractorRepresentative: row?.ContractorRepresentative ?? string.Empty,
+            ContractorAddress: row?.ContractorAddress ?? string.Empty,
+            ContractorContact: row?.ContractorContact ?? fallbackContact,
+            PaymentTerms: row?.PaymentTerms ?? string.Empty,
             EventDate: booking.EventDate.ToString("yyyy-MM-dd"),
             StartTime: booking.StartTime.ToString(@"hh\:mm"),
             EndTime: booking.EndTime.ToString(@"hh\:mm"),
             Location: booking.Location,
             CacheValue: booking.Budget,
-            SignatureData: request.SignatureData,
-            SignedName: artist.Name,
-            SignedAtUtc: clock.UtcNow,
-            SignedIp: ip,
-            SignedUserAgent: userAgent);
+            SignatureData: row?.ArtistSignatureData,
+            SignedName: row?.ArtistSignedName,
+            SignedAtUtc: row?.ArtistSignedAtUtc,
+            SignedIp: row?.ArtistIp,
+            SignedUserAgent: row?.ArtistUserAgent,
+            ContractorAccessToken: contractorAccessToken ?? row?.ContractorAccessToken,
+            ContractorSigned: row?.ContractorSignedAtUtc is not null,
+            ContractorSignedDocument: row?.ContractorSignedDocument,
+            ContractorSignatureData: row?.ContractorSignatureData,
+            ContractorSignedName: row?.ContractorSignedName,
+            ContractorSignedAtUtc: row?.ContractorSignedAtUtc,
+            ContractorSignedIp: row?.ContractorIp);
     }
 
     private async Task<BookingRequest> LoadBookingAsync(Guid bookingId) =>
@@ -209,7 +290,9 @@ public class ContractService(IAppDbContext db, ICurrentUserService currentUser, 
         return (contractor?.Name ?? "Contratante", contractor?.Phone ?? string.Empty);
     }
 
-    private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd");
+    private static string FormatDate(DateOnly date) => date.ToString("dd/MM/yyyy");
+
+    private static string FormatDateBr(DateOnly date) => date.ToString("dd/MM/yyyy");
 
     private static string DurationLabel(TimeOnly start, TimeOnly end)
     {
@@ -355,7 +438,7 @@ CLÁUSULA 8ª — DO FORO
 
 E, por estarem de acordo, as partes assinam o presente instrumento.
 
-Local: {line}
+Local: {V(d.Location)}
 
 Data: {d.EventDate}
 

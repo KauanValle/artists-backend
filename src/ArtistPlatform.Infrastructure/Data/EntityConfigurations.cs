@@ -111,6 +111,7 @@ public class SignatureContractConfiguration : IEntityTypeConfiguration<Signature
         builder.Property(c => c.ArtistUserAgent).HasMaxLength(400);
         builder.HasIndex(c => c.BookingRequestId).IsUnique();
         builder.HasIndex(c => c.ArtistId);
+        builder.HasIndex(c => c.ContractorAccessToken).IsUnique();
     }
 }
 

@@ -121,6 +121,76 @@ public class ContractServiceTests
     }
 
     [Fact]
+    public async Task Sign_Artista_GeraTokenParaContratante()
+    {
+        var (_, _, service, _, booking) = Arrange();
+
+        var dto = await service.SignAsync(booking.Id, SignRequest(), "1.1.1.1", "ua");
+
+        Assert.False(string.IsNullOrWhiteSpace(dto.ContractorAccessToken));
+
+        var byToken = await service.GetByTokenAsync(dto.ContractorAccessToken!);
+        Assert.True(byToken.Signed);
+        Assert.False(byToken.ContractorSigned);
+        Assert.Equal(dto.ContractText, byToken.ContractText);
+        Assert.Contains("CLÁUSULA 1ª", byToken.ContractText);
+    }
+
+    [Fact]
+    public async Task SignByContractor_PersisteEvidencias()
+    {
+        var (db, _, service, _, booking) = Arrange();
+        var artistDto = await service.SignAsync(booking.Id, SignRequest(), "1.1.1.1", "ua");
+        var token = artistDto.ContractorAccessToken!;
+
+        var dto = await service.SignByContractorAsync(
+            token,
+            new SignContractorRequest("Kauan Bar", "12.345.678/0001-00", "Rua do Bar, 50 — Curitiba/PR", "contato@bardo kauan.com".Replace(" ", ""), "Kauan Silva", "data:image/png;base64,iVBORw0KGgo="),
+            "200.100.50.25",
+            "mobile-agent/2.0");
+
+        Assert.True(dto.ContractorSigned);
+        Assert.Equal("Kauan Bar", dto.ContractorSignedName);
+        Assert.Equal("200.100.50.25", dto.ContractorSignedIp);
+
+        var row = await db.SignatureContracts.SingleAsync(c => c.BookingRequestId == booking.Id);
+        Assert.Equal("Kauan Bar", row.ContractorSignedName);
+        Assert.NotNull(row.ContractorContentHash);
+        Assert.NotNull(row.ContractorSignedAtUtc);
+    }
+
+    [Fact]
+    public async Task SignByContractor_JaAssinado_Lanca()
+    {
+        var (_, _, service, _, booking) = Arrange();
+        await service.SignAsync(booking.Id, SignRequest(), "1.1.1.1", "ua");
+        var token = (await service.GetForBookingAsync(booking.Id)).ContractorAccessToken!;
+
+        await service.SignByContractorAsync(
+            token,
+            new SignContractorRequest("Kauan Bar", "12.345.678/0001-00", "Rua do Bar, 50 — Curitiba/PR", "contato@bardo kauan.com".Replace(" ", ""), "Kauan Silva", "data:image/png;base64,iVBORw0KGgo="),
+            "ip",
+            "ua");
+
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            service.SignByContractorAsync(
+                token,
+                new SignContractorRequest("Outro", "outro-doc", "Rua X", "contato@outro.com", null, "data:image/png;base64,iVBORw0KGgo="),
+                "ip",
+                "ua"));
+
+        Assert.Contains("já foi assinado", ex.Message);
+    }
+
+    [Fact]
+    public async Task GetByToken_TokenInvalido_Lanca()
+    {
+        var (_, _, service, _, _) = Arrange();
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetByTokenAsync("token-inexistente"));
+    }
+
+    [Fact]
     public async Task Sign_ContratacaoNaoConfirmada_Lanca()
     {
         var (_, _, service, _, booking) = Arrange(BookingStatus.Requested);

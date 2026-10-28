@@ -1041,6 +1041,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ContractorAccessToken")
+                        .HasColumnType("text");
+
                     b.Property<string>("ContractorAddress")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -1051,6 +1054,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("ContractorContentHash")
+                        .HasColumnType("text");
+
                     b.Property<string>("ContractorDocument")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -1058,6 +1064,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
 
                     b.Property<Guid?>("ContractorId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ContractorIp")
+                        .HasColumnType("text");
 
                     b.Property<string>("ContractorName")
                         .IsRequired()
@@ -1068,6 +1077,23 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ContractorSignatureData")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ContractorSignedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ContractorSignedDocument")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContractorSignedName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContractorUserAgent")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1085,6 +1111,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.HasIndex("ArtistId");
 
                     b.HasIndex("BookingRequestId")
+                        .IsUnique();
+
+                    b.HasIndex("ContractorAccessToken")
                         .IsUnique();
 
                     b.ToTable("SignatureContracts", (string)null);

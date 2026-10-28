@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ArtistPlatform.Application")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0e35a046d884d6b9fccdabbf5d24e96148e3a705")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0101750592c5b027181caccdc174d8877a0cb96d")]
 [assembly: System.Reflection.AssemblyProductAttribute("ArtistPlatform.Application")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ArtistPlatform.Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

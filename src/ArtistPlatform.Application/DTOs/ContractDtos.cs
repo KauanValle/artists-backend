@@ -15,6 +15,14 @@ public record SignArtistContractRequest(
     string PaymentTerms,
     string SignatureData);
 
+public record SignContractorRequest(
+    string SignedName,
+    string SignedDocument,
+    string SignedAddress,
+    string SignedContact,
+    string? Representative,
+    string SignatureData);
+
 public record ArtistContractDto(
     Guid BookingRequestId,
     bool Signed,
@@ -40,4 +48,11 @@ public record ArtistContractDto(
     string? SignedName,
     DateTime? SignedAtUtc,
     string? SignedIp,
-    string? SignedUserAgent);
+    string? SignedUserAgent,
+    string? ContractorAccessToken,
+    bool ContractorSigned,
+    string? ContractorSignedDocument,
+    string? ContractorSignatureData,
+    string? ContractorSignedName,
+    DateTime? ContractorSignedAtUtc,
+    string? ContractorSignedIp);

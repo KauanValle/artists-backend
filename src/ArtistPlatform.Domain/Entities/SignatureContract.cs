@@ -37,4 +37,16 @@ public class SignatureContract : BaseEntity
     public DateTime? ArtistSignedAtUtc { get; set; }
     public string? ArtistIp { get; set; }
     public string? ArtistUserAgent { get; set; }
+
+    // Link de assinatura do contratante (gerado quando o artista assina)
+    public string? ContractorAccessToken { get; set; }
+
+    // Assinatura eletrônica do contratante
+    public string? ContractorSignatureData { get; set; } // PNG em data URL (canvas)
+    public string ContractorSignedName { get; set; } = string.Empty;
+    public string ContractorSignedDocument { get; set; } = string.Empty;
+    public DateTime? ContractorSignedAtUtc { get; set; }
+    public string? ContractorIp { get; set; }
+    public string? ContractorUserAgent { get; set; }
+    public string? ContractorContentHash { get; set; } // SHA-256 hex
 }
