@@ -137,9 +137,21 @@ public class BookingService(
         return await ToDtoAsync(booking, artist.ArtisticName, booking.GuestName);
     }
 
-    /// <summary>RN009: solicitação não pode cair em dia/horário bloqueado pelo artista (indisponível/pré-reservado).</summary>
+    /// <summary>
+    /// RN009: solicitação não pode cair em dia/horário bloqueado pelo artista (indisponível/pré-reservado)
+    /// e, quando o artista já declarou dias de trabalho, só esses dias da semana podem ser solicitados.
+    /// </summary>
     private async Task EnsureArtistNotBlockedAsync(Guid artistId, DateOnly eventDate, TimeOnly startTime, TimeOnly endTime)
     {
+        var configuredWeekdays = await db.ArtistAvailabilities.AsNoTracking()
+            .Where(a => a.ArtistId == artistId && a.Status == AvailabilityStatus.Available)
+            .Select(a => (int)a.Date.DayOfWeek)
+            .Distinct()
+            .ToListAsync();
+
+        if (configuredWeekdays.Count > 0 && !configuredWeekdays.Contains((int)eventDate.DayOfWeek))
+            throw new BusinessRuleException("RN009: o artista não atende nesse dia da semana.");
+
         var hasBlock = await db.ArtistAvailabilities.AsNoTracking()
             .AnyAsync(a => a.ArtistId == artistId &&
                            a.Status != AvailabilityStatus.Available &&

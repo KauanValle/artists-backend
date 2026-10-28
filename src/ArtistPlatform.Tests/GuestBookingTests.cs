@@ -122,19 +122,51 @@ public class GuestBookingTests
     public async Task CreateGuest_EmDiaBloqueado_RN009_Lanca()
     {
         var (db, _, service, artist) = Seed();
+        // 2027-03-11 é quinta — dia de trabalho declarado pela disponibilidade abaixo.
         db.ArtistAvailabilities.Add(new ArtistAvailability
         {
             ArtistId = artist.Id,
-            Date = new DateOnly(2027, 3, 10),
+            Date = new DateOnly(2027, 3, 11),
+            StartTime = new TimeOnly(20, 0),
+            EndTime = new TimeOnly(23, 0),
+            Status = AvailabilityStatus.Available
+        });
+        db.ArtistAvailabilities.Add(new ArtistAvailability
+        {
+            ArtistId = artist.Id,
+            Date = new DateOnly(2027, 3, 11),
             StartTime = new TimeOnly(18, 0),
             EndTime = new TimeOnly(23, 0),
             Status = AvailabilityStatus.Unavailable
         });
         db.SaveChanges();
 
-        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() => service.CreateGuestAsync(Request(artist.Id)));
+        var request = Request(artist.Id) with { EventDate = new DateOnly(2027, 3, 11) };
+
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() => service.CreateGuestAsync(request));
 
         Assert.Contains("indisponível", ex.Message);
+        Assert.Equal(0, await db.BookingRequests.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateGuest_ForaDosDiasDeTrabalho_RN009_Lanca()
+    {
+        var (db, _, service, artist) = Seed();
+        // Artista só atende às quintas; a solicitação é para uma quarta-feira.
+        db.ArtistAvailabilities.Add(new ArtistAvailability
+        {
+            ArtistId = artist.Id,
+            Date = new DateOnly(2027, 3, 11),
+            StartTime = new TimeOnly(20, 0),
+            EndTime = new TimeOnly(23, 0),
+            Status = AvailabilityStatus.Available
+        });
+        db.SaveChanges();
+
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() => service.CreateGuestAsync(Request(artist.Id)));
+
+        Assert.Contains("dia da semana", ex.Message);
         Assert.Equal(0, await db.BookingRequests.CountAsync());
     }
 
