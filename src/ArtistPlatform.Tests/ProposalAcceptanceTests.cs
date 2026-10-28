@@ -1,4 +1,5 @@
 using ArtistPlatform.Application.Common;
+using ArtistPlatform.Application.DTOs;
 using ArtistPlatform.Application.Interfaces;
 using ArtistPlatform.Application.Services;
 using ArtistPlatform.Domain.Entities;
@@ -81,6 +82,34 @@ public class ProposalAcceptanceTests
 
         // artista e contratante notificados
         Assert.Equal(2, await db.Notifications.CountAsync());
+    }
+
+    [Fact]
+    public async Task Create_PropostaEmDiaIndisponivel_RN017_Lanca()
+    {
+        var db = TestDb.Create();
+        var (artist, contractor, booking, _) = Seed(db);
+        db.ArtistAvailabilities.Add(new ArtistAvailability
+        {
+            ArtistId = artist.Id,
+            Date = booking.EventDate,
+            StartTime = new TimeOnly(10, 0),
+            EndTime = new TimeOnly(23, 0),
+            Status = AvailabilityStatus.Unavailable
+        });
+        db.SaveChanges();
+
+        var artistUser = new FakeCurrentUser { Role = UserRole.Artist, UserId = artist.UserId, ArtistId = artist.Id };
+        var service = CreateService(db, artistUser);
+
+        var request = new CreateProposalRequestDto(
+            booking.Id,
+            [new CreateProposalItemDto("Show 3h", 1500m)],
+            0, 0, 0, 7, "");
+
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() => service.CreateAsync(request));
+        Assert.Contains("RN017", ex.Message);
+        Assert.Contains("bloqueado", ex.Message);
     }
 
     [Fact]

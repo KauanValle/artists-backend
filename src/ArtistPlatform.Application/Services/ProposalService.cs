@@ -46,6 +46,24 @@ public class ProposalService(
         if (!booking.CanEvolve)
             throw new BusinessRuleException("RN018: esta solicitação não aceita mais propostas.");
 
+        // RN017: o artista não propõe para um horário que ele mesmo bloqueou na agenda
+        // (indisponível ou pré-reservado).
+        var proposedInterval = booking.ToInterval();
+        var blockedDays = await db.ArtistAvailabilities.AsNoTracking()
+            .Where(a => a.ArtistId == artistId &&
+                        a.Status != AvailabilityStatus.Available &&
+                        a.Date == booking.EventDate)
+            .ToListAsync();
+        foreach (var row in blockedDays)
+        {
+            var blockedInterval = new Interval(
+                row.Date.ToDateTime(row.StartTime, DateTimeKind.Utc),
+                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime, DateTimeKind.Utc));
+            if (blockedInterval.Overlaps(proposedInterval))
+                throw new BusinessRuleException(
+                    "RN017: o horário proposto está bloqueado na sua agenda. Ajuste a data da proposta ou libere o dia na sua disponibilidade.");
+        }
+
         var artistUser = await db.Artists.AsNoTracking().Where(a => a.Id == artistId).Select(a => a.UserId).FirstAsync();
         var contractorUser = booking.ContractorId is null
             ? null
