@@ -170,6 +170,28 @@ public class GuestBookingTests
         Assert.Equal(0, await db.BookingRequests.CountAsync());
     }
 
+    /// <summary>RN017: solicitação não pode cair em horário ocupado por evento confirmado na agenda.</summary>
+    [Fact]
+    public async Task CreateGuest_SobreEventoConfirmado_RN017_Lanca()
+    {
+        var (db, _, service, artist) = Seed();
+        db.Events.Add(new Event
+        {
+            ArtistId = artist.Id,
+            Title = "Show confirmado",
+            Type = EventType.Show,
+            StartDateTime = new DateTime(2027, 3, 10, 21, 0, 0, DateTimeKind.Utc),
+            EndDateTime = new DateTime(2027, 3, 11, 1, 0, 0, DateTimeKind.Utc),
+            Status = EventStatus.Confirmed
+        });
+        db.SaveChanges();
+
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() => service.CreateGuestAsync(Request(artist.Id)));
+
+        Assert.Contains("RN017", ex.Message);
+        Assert.Equal(0, await db.BookingRequests.CountAsync());
+    }
+
     [Fact]
     public async Task Accept_SolicitacaoDeVisitante_ConfirmaEventoSemContratante()
     {

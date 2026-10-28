@@ -16,6 +16,7 @@ public interface IAvailabilityService
     Task<BatchAvailabilityResultDto> CreateBatchAsync(Guid userId, SaveAvailabilityBatchRequest request);
     Task<AvailabilityDto> UpdateAsync(Guid userId, Guid id, SaveAvailabilityRequest request);
     Task DeleteAsync(Guid userId, Guid id);
+    Task<List<BusySlotDto>> GetBusySlotsAsync(Guid artistId, DateOnly? from, DateOnly? to);
 }
 
 public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUser) : IAvailabilityService
@@ -124,6 +125,49 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
 
         await db.SaveChangesAsync();
         return new BatchAvailabilityResultDto(created, skippedExisting, skippedConflict);
+    }
+
+    /// <summary>
+    /// Janelas ocupadas por eventos (agendados/confirmados) do artista, expandidas por dia.
+    /// Eventos de múltiplos dias viram uma janela por dia — a contratação usa isso para
+    /// bloquear horários no calendário público.
+    /// </summary>
+    public async Task<List<BusySlotDto>> GetBusySlotsAsync(Guid artistId, DateOnly? from, DateOnly? to)
+    {
+        var query = db.Events.AsNoTracking()
+            .Where(e => e.ArtistId == artistId &&
+                        (e.Status == EventStatus.Scheduled || e.Status == EventStatus.Confirmed));
+
+        if (from.HasValue)
+        {
+            var fromDt = from.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(e => e.EndDateTime > fromDt);
+        }
+        if (to.HasValue)
+        {
+            var toDt = to.Value.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+            query = query.Where(e => e.StartDateTime < toDt);
+        }
+
+        var events = await query.Select(e => new { e.StartDateTime, e.EndDateTime }).ToListAsync();
+
+        var slots = new List<BusySlotDto>();
+        foreach (var ev in events)
+        {
+            var day = DateOnly.FromDateTime(ev.StartDateTime);
+            var lastDay = DateOnly.FromDateTime(ev.EndDateTime);
+            while (day <= lastDay)
+            {
+                var dayStartUtc = day.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+                var dayEndUtc = day.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+                var startTime = ev.StartDateTime < dayStartUtc ? TimeOnly.MinValue : TimeOnly.FromDateTime(ev.StartDateTime);
+                var endTime = ev.EndDateTime > dayEndUtc ? TimeOnly.MaxValue : TimeOnly.FromDateTime(ev.EndDateTime);
+                slots.Add(new BusySlotDto(day, startTime, endTime));
+                day = day.AddDays(1);
+            }
+        }
+
+        return slots.OrderBy(s => s.Date).ThenBy(s => s.StartTime).ToList();
     }
 
     public async Task<AvailabilityDto> UpdateAsync(Guid userId, Guid id, SaveAvailabilityRequest request)

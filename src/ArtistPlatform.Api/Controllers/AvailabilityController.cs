@@ -15,6 +15,13 @@ public class AvailabilityController(IAvailabilityService availabilityService) : 
     public async Task<ActionResult<List<AvailabilityDto>>> ListByArtist(
         Guid artistId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
         => Ok(await availabilityService.ListByArtistAsync(artistId, from, to));
+
+    /// <summary>Janelas ocupadas por eventos (agendados/confirmados) — pública, para bloquear horários na contratação.</summary>
+    [HttpGet("busy-slots")]
+    [AllowAnonymous]
+    public async Task<ActionResult<List<BusySlotDto>>> BusySlots(
+        Guid artistId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
+        => Ok(await availabilityService.GetBusySlotsAsync(artistId, from, to));
 }
 
 [ApiController]

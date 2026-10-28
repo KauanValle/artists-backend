@@ -146,3 +146,6 @@ public record SaveAvailabilityBatchRequest(
     string? Note);
 
 public record BatchAvailabilityResultDto(int Created, int SkippedExisting, int SkippedEventConflict);
+
+/// <summary>Janela ocupada por evento (agendado/confirmado) — usada para bloquear horários na contratação.</summary>
+public record BusySlotDto(DateOnly Date, TimeOnly StartTime, TimeOnly EndTime);

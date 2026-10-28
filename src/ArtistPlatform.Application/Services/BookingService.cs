@@ -160,6 +160,17 @@ public class BookingService(
                            a.EndTime > startTime);
         if (hasBlock)
             throw new BusinessRuleException("RN009: o artista está indisponível nessa data e horário.");
+
+        // RN017: evento agendado/confirmado na agenda do artista ocupa o horário.
+        var interval = new Interval(
+            eventDate.ToDateTime(startTime, DateTimeKind.Utc),
+            eventDate.ToDateTime(endTime, DateTimeKind.Utc));
+        var hasEvent = await db.Events.AsNoTracking()
+            .AnyAsync(e => e.ArtistId == artistId &&
+                           (e.Status == EventStatus.Scheduled || e.Status == EventStatus.Confirmed) &&
+                           e.StartDateTime < interval.End && e.EndDateTime > interval.Start);
+        if (hasEvent)
+            throw new BusinessRuleException("RN017: o artista já possui um evento agendado nesse horário.");
     }
 
     /// <summary>Lista com abas por status (PRD §10), filtrada pelo papel do usuário autenticado.</summary>
