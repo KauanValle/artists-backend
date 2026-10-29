@@ -205,8 +205,9 @@ public class BookingService(
             query = query.Where(b => b.Status == status.Value);
 
         // Filtro para o painel admin: solicitações de visitante (sem cadastro).
+        // IsGuest é computed property — na query usa a expressão mapeada (ContractorId nulo).
         if (isGuest.HasValue)
-            query = query.Where(b => b.IsGuest == isGuest.Value);
+            query = query.Where(b => (b.ContractorId == null) == isGuest.Value);
 
         var total = await query.CountAsync();
         var bookings = await query
