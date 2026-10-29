@@ -134,13 +134,7 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
     /// </summary>
     public async Task<List<BusySlotDto>> GetBusySlotsAsync(Guid artistId, DateOnly? from, DateOnly? to)
     {
-        // Tempo de deslocamento/montagem do artista expande cada janela ocupada.
-        var travelMinutes = await db.Artists.AsNoTracking()
-            .Where(a => a.Id == artistId)
-            .Select(a => a.TravelTimeMinutes)
-            .FirstOrDefaultAsync();
-        var buffer = TimeSpan.FromMinutes(Math.Max(0, travelMinutes));
-
+        // Os eventos já são gravados com o buffer de deslocamento aplicado — sem dupla expansão.
         var query = db.Events.AsNoTracking()
             .Where(e => e.ArtistId == artistId &&
                         (e.Status == EventStatus.Scheduled || e.Status == EventStatus.Confirmed));
@@ -161,18 +155,14 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         var slots = new List<BusySlotDto>();
         foreach (var ev in events)
         {
-            // Janela com o deslocamento aplicado: montagem/deslocamento antes, desmontagem depois.
-            var busyStart = ev.StartDateTime - buffer;
-            var busyEnd = ev.EndDateTime + buffer;
-
-            var day = DateOnly.FromDateTime(busyStart);
-            var lastDay = DateOnly.FromDateTime(busyEnd);
+            var day = DateOnly.FromDateTime(ev.StartDateTime);
+            var lastDay = DateOnly.FromDateTime(ev.EndDateTime);
             while (day <= lastDay)
             {
                 var dayStartUtc = day.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
                 var dayEndUtc = day.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
-                var startTime = busyStart < dayStartUtc ? TimeOnly.MinValue : TimeOnly.FromDateTime(busyStart);
-                var endTime = busyEnd > dayEndUtc ? TimeOnly.MaxValue : TimeOnly.FromDateTime(busyEnd);
+                var startTime = ev.StartDateTime < dayStartUtc ? TimeOnly.MinValue : TimeOnly.FromDateTime(ev.StartDateTime);
+                var endTime = ev.EndDateTime > dayEndUtc ? TimeOnly.MaxValue : TimeOnly.FromDateTime(ev.EndDateTime);
                 slots.Add(new BusySlotDto(day, startTime, endTime));
                 day = day.AddDays(1);
             }
