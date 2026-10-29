@@ -21,8 +21,8 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     /// <summary>Lista com filtro por status (abas do PRD §10), escopada ao papel do usuário.</summary>
     [HttpGet]
     public async Task<ActionResult<PagedResult<BookingDto>>> List(
-        [FromQuery] BookingStatus? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        => Ok(await bookingService.ListAsync(status, page, pageSize));
+        [FromQuery] BookingStatus? status, [FromQuery] bool? isGuest, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        => Ok(await bookingService.ListAsync(status, isGuest, page, pageSize));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<BookingDto>> Get(Guid id)

@@ -13,7 +13,7 @@ public interface IBookingService
 {
     Task<BookingDto> CreateAsync(CreateBookingRequestDto request);
     Task<BookingDto> CreateGuestAsync(CreateGuestBookingRequestDto request);
-    Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, int page, int pageSize);
+    Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, bool? isGuest, int page, int pageSize);
     Task<BookingDto> GetAsync(Guid id);
     Task<BookingDto> StartNegotiationAsync(Guid id);
     Task<BookingDto> AcceptAsync(Guid id);
@@ -187,7 +187,7 @@ public class BookingService(
     }
 
     /// <summary>Lista com abas por status (PRD §10), filtrada pelo papel do usuário autenticado.</summary>
-    public async Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, int page, int pageSize)
+    public async Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, bool? isGuest, int page, int pageSize)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 50);
@@ -203,6 +203,10 @@ public class BookingService(
 
         if (status.HasValue)
             query = query.Where(b => b.Status == status.Value);
+
+        // Filtro para o painel admin: solicitações de visitante (sem cadastro).
+        if (isGuest.HasValue)
+            query = query.Where(b => b.IsGuest == isGuest.Value);
 
         var total = await query.CountAsync();
         var bookings = await query
@@ -431,6 +435,8 @@ public class BookingService(
         // RN007: aceite cria/confirma o evento (RN008: bloqueia a agenda).
         // O tempo de deslocamento/montagem do artista expande a reserva antes e depois do show.
         var buffer = TimeSpan.FromMinutes(artist.TravelTimeMinutes);
+        // Visitante: evento pré-reservado (soft) — formaliza quando o contratante criar conta.
+        var eventStatus = booking.IsGuest ? EventStatus.PreReserved : EventStatus.Confirmed;
         var ev = new Event
         {
             ArtistId = booking.ArtistId,
@@ -442,12 +448,13 @@ public class BookingService(
             EndDateTime = interval.End + buffer,
             Location = booking.Location,
             Description = booking.Message,
-            Status = EventStatus.Confirmed
+            Status = eventStatus
         };
         db.Events.Add(ev);
 
         booking.EventId = ev.Id;
-        booking.Status = BookingStatus.Confirmed;
+        // Visitante: fica "Aguardando conta" até o contratante criar o cadastro e formalizar.
+        booking.Status = booking.IsGuest ? BookingStatus.AwaitingAccount : BookingStatus.Confirmed;
         booking.UpdatedAt = DateTime.UtcNow;
 
         // RN010: receita PENDING com o orçamento acordado

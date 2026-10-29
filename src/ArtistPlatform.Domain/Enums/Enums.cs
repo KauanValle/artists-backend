@@ -37,7 +37,10 @@ public enum EventStatus
     Scheduled = 1,
     Confirmed = 2,
     Completed = 3,
-    Cancelled = 4
+    Cancelled = 4,
+
+    /// <summary>Pré-reservado: show aceito de contratante visitante — reserva soft na agenda.</summary>
+    PreReserved = 5
 }
 
 /// <summary>Ciclo da contratação (PRD §11).</summary>
@@ -51,7 +54,8 @@ public enum BookingStatus
     Completed = 6,
     Cancelled = 7,
     Rejected = 8,
-    Expired = 9
+    Expired = 9,
+    AwaitingAccount = 12
 }
 
 public enum ProposalStatus

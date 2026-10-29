@@ -194,16 +194,17 @@ public class GuestBookingTests
     }
 
     [Fact]
-    public async Task Accept_SolicitacaoDeVisitante_ConfirmaEventoSemContratante()
+    public async Task Accept_SolicitacaoDeVisitante_FicaAguardandoConta()
     {
         var (db, _, service, artist) = Seed();
         var created = await service.CreateGuestAsync(Request(artist.Id));
 
         var result = await service.AcceptAsync(created.Id);
 
-        Assert.Equal(BookingStatus.Confirmed, result.Status);
+        // Visitante: show aceito fica aguardando o contratante criar conta para formalizar.
+        Assert.Equal(BookingStatus.AwaitingAccount, result.Status);
         var ev = await db.Events.SingleAsync(e => e.BookingRequestId == created.Id);
-        Assert.Equal(EventStatus.Confirmed, ev.Status);
+        Assert.Equal(EventStatus.PreReserved, ev.Status);
         Assert.Null(ev.ContractorId);
         var income = await db.FinancialTransactions.SingleAsync(t => t.EventId == ev.Id);
         Assert.Equal(1800m, income.Amount);
