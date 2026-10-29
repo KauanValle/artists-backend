@@ -52,7 +52,8 @@ public class GuestBookingTests
         Location: "Bar do Carlos",
         EventType: EventType.Show,
         EstimatedAudience: 120,
-        Message: "Show de 3 horas");
+        Message: "Show de 3 horas",
+        Addons: null);
 
     [Fact]
     public async Task CreateGuest_ComDadosValidos_CriaSolicitacaoSemContratante()

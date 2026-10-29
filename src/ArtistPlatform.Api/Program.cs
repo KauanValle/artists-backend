@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using ArtistPlatform.Api.Json;
 using ArtistPlatform.Api.Middleware;
 using ArtistPlatform.Application;
 using ArtistPlatform.Infrastructure;
@@ -9,6 +10,8 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    // Wall clock: horários saem sem sufixo de fuso (o sistema trata tudo como hora do Brasil)
+    options.JsonSerializerOptions.Converters.Add(new ArtistPlatform.Api.Json.WallClockDateTimeConverter());
 });
 
 builder.Services.AddApplication();

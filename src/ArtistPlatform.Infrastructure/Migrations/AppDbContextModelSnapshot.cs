@@ -64,6 +64,11 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)");
 
+                    b.Property<int>("TravelTimeMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
@@ -294,6 +299,50 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.ToTable("Billings", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.BookingAddon", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<Guid>("BookingRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ItemType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ShareType")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("ShareValue")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingRequestId");
+
+                    b.ToTable("BookingAddons", (string)null);
+                });
+
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.BookingRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -461,6 +510,11 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AllocationType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<Guid>("ArtistId")
                         .HasColumnType("uuid");
 
@@ -496,6 +550,17 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("ShareType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(2);
+
+                    b.Property<decimal>("ShareValue")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -1124,6 +1189,11 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("AllocationType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<Guid>("ArtistId")
                         .HasColumnType("uuid");

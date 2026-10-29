@@ -4,6 +4,18 @@ namespace ArtistPlatform.Application.DTOs;
 
 // ─────────────────────────── Bookings ───────────────────────────
 
+/// <summary>Adicional escolhido pelo contratante (equipe externa ou equipamento externo).</summary>
+public record BookingAddonItemRequest(AddonItemType ItemType, Guid ItemId);
+
+public record BookingAddonDto(
+    Guid Id,
+    AddonItemType ItemType,
+    Guid ItemId,
+    string Name,
+    ShareType ShareType,
+    decimal ShareValue,
+    decimal Amount);
+
 public record CreateBookingRequestDto(
     Guid ArtistId,
     DateOnly EventDate,
@@ -13,7 +25,8 @@ public record CreateBookingRequestDto(
     EventType EventType,
     int? EstimatedAudience,
     decimal? Budget,
-    string Message);
+    string Message,
+    List<BookingAddonItemRequest>? Addons);
 
 /// <summary>Solicitação aberta pela rota pública (sem cadastro): dados de contato informados na hora.</summary>
 public record CreateGuestBookingRequestDto(
@@ -28,7 +41,8 @@ public record CreateGuestBookingRequestDto(
     string Location,
     EventType EventType,
     int? EstimatedAudience,
-    string Message);
+    string Message,
+    List<BookingAddonItemRequest>? Addons);
 
 public record BookingDto(
     Guid Id,
@@ -52,7 +66,8 @@ public record BookingDto(
     Guid? EventId,
     Guid? AcceptedProposalId,
     Guid ConversationId,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    List<BookingAddonDto> Addons);
 
 // ─────────────────────────── Proposals ───────────────────────────
 

@@ -43,6 +43,9 @@ public class BookingService(
             ?? throw new NotFoundException("Artista não encontrado.");
         var artistUser = await db.Artists.AsNoTracking().Where(a => a.Id == request.ArtistId).Select(a => a.UserId).FirstAsync();
 
+        // Adicionais (equipe/equipamento externos): valores calculados no servidor sobre a proposta.
+        var addons = await ResolveAddonsAsync(request.ArtistId, request.Addons, request.Budget ?? 0);
+
         var booking = new BookingRequest
         {
             ArtistId = request.ArtistId,
@@ -53,11 +56,12 @@ public class BookingService(
             Location = request.Location,
             EventType = request.EventType,
             EstimatedAudience = request.EstimatedAudience,
-            Budget = request.Budget,
+            Budget = request.Budget.HasValue || addons.Count > 0 ? (request.Budget ?? 0) + addons.Sum(a => a.Amount) : null,
             Message = request.Message ?? string.Empty,
             Status = BookingStatus.Requested
         };
         db.BookingRequests.Add(booking);
+        db.BookingAddons.AddRange(addons.Select(a => { a.BookingRequestId = booking.Id; return a; }));
 
         var contractorUserId = currentUser.UserId!.Value;
         db.Conversations.Add(new Conversation
@@ -76,7 +80,7 @@ public class BookingService(
             $"{artist.ArtisticName} recebeu uma nova solicitação para {request.EventDate:dd/MM/yyyy} às {request.StartTime}.",
             $"/shows/{booking.Id}");
 
-        return await ToDtoAsync(booking, artist.ArtisticName, await GetContractorNameAsync(contractorId));
+        return await ToDtoAsync(booking, artist.ArtisticName, await GetContractorNameAsync(contractorId), addons);
     }
 
     /// <summary>
@@ -107,6 +111,9 @@ public class BookingService(
         // RN009: não é possível solicitar o artista em dia/horário que ele bloqueou na agenda.
         await EnsureArtistNotBlockedAsync(request.ArtistId, request.EventDate, request.StartTime, request.EndTime);
 
+        // Adicionais (equipe/equipamento externos): valores calculados no servidor sobre a proposta.
+        var addons = await ResolveAddonsAsync(request.ArtistId, request.Addons, request.Budget);
+
         var booking = new BookingRequest
         {
             ArtistId = request.ArtistId,
@@ -117,7 +124,7 @@ public class BookingService(
             Location = request.Location,
             EventType = request.EventType,
             EstimatedAudience = request.EstimatedAudience,
-            Budget = request.Budget,
+            Budget = request.Budget + addons.Sum(a => a.Amount),
             Message = request.Message ?? string.Empty,
             GuestName = request.GuestName.Trim(),
             GuestCompanyName = string.IsNullOrWhiteSpace(request.GuestCompanyName) ? null : request.GuestCompanyName.Trim(),
@@ -125,6 +132,7 @@ public class BookingService(
             Status = BookingStatus.Requested
         };
         db.BookingRequests.Add(booking);
+        db.BookingAddons.AddRange(addons.Select(a => { a.BookingRequestId = booking.Id; return a; }));
         await db.SaveChangesAsync();
 
         await notifications.NotifyAsync(
@@ -134,7 +142,7 @@ public class BookingService(
             $"{request.GuestName.Trim()} ({request.GuestPhone.Trim()}) solicitou {artist.ArtisticName} para {request.EventDate:dd/MM/yyyy} às {request.StartTime}.",
             $"/shows/{booking.Id}");
 
-        return await ToDtoAsync(booking, artist.ArtisticName, booking.GuestName);
+        return await ToDtoAsync(booking, artist.ArtisticName, booking.GuestName, addons);
     }
 
     /// <summary>
@@ -161,14 +169,19 @@ public class BookingService(
         if (hasBlock)
             throw new BusinessRuleException("RN009: o artista está indisponível nessa data e horário.");
 
-        // RN017: evento agendado/confirmado na agenda do artista ocupa o horário.
-        var interval = new Interval(
-            eventDate.ToDateTime(startTime, DateTimeKind.Utc),
-            eventDate.ToDateTime(endTime, DateTimeKind.Utc));
+        // RN017: evento agendado/confirmado na agenda do artista ocupa o horário —
+        // incluindo o tempo de deslocamento/montagem configurado pelo artista.
+        var travelMinutes = await db.Artists.AsNoTracking()
+            .Where(a => a.Id == artistId)
+            .Select(a => a.TravelTimeMinutes)
+            .FirstOrDefaultAsync();
+        var buffer = TimeSpan.FromMinutes(Math.Max(0, travelMinutes));
+        var requestedStart = eventDate.ToDateTime(startTime, DateTimeKind.Utc) - buffer;
+        var requestedEnd = eventDate.ToDateTime(endTime, DateTimeKind.Utc) + buffer;
         var hasEvent = await db.Events.AsNoTracking()
             .AnyAsync(e => e.ArtistId == artistId &&
                            (e.Status == EventStatus.Scheduled || e.Status == EventStatus.Confirmed) &&
-                           e.StartDateTime < interval.End && e.EndDateTime > interval.Start);
+                           e.StartDateTime < requestedEnd && e.EndDateTime > requestedStart);
         if (hasEvent)
             throw new BusinessRuleException("RN017: o artista já possui um evento agendado nesse horário.");
     }
@@ -249,16 +262,122 @@ public class BookingService(
     public async Task<BookingDto> CancelAsync(Guid id)
     {
         var booking = await EnsureAccessAsync(id);
-        if (booking.Status is BookingStatus.Confirmed or BookingStatus.Completed)
-            throw new BusinessRuleException("Eventos confirmados devem ser cancelados pela agenda.");
-        if (!booking.CanEvolve)
+        var actorIsArtist = currentUser.Role == UserRole.Artist;
+
+        if (booking.Status == BookingStatus.Completed)
+            throw new BusinessRuleException("Shows realizados não podem ser cancelados.");
+        if (booking.Status is not (BookingStatus.Requested or BookingStatus.Negotiating or BookingStatus.Proposed or BookingStatus.Confirmed))
             throw new BusinessRuleException("Esta solicitação não pode mais ser cancelada.");
+
+        // Show confirmado: cancela também o evento na agenda para liberar a data.
+        if (booking.Status == BookingStatus.Confirmed && booking.EventId is not null)
+        {
+            var ev = await db.Events.FirstOrDefaultAsync(e => e.Id == booking.EventId);
+            if (ev is not null && ev.BlocksAgenda)
+            {
+                ev.Status = EventStatus.Cancelled;
+                ev.UpdatedAt = DateTime.UtcNow;
+            }
+        }
 
         booking.Status = BookingStatus.Cancelled;
         booking.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
+        // Notifica as duas partes quando identificáveis (contratante visitante não tem conta).
+        var message = $"A contratação de {booking.EventDate:dd/MM/yyyy} às {booking.StartTime} foi cancelada.";
+        var artistUserId = await db.Artists.AsNoTracking()
+            .Where(a => a.Id == booking.ArtistId)
+            .Select(a => a.UserId)
+            .FirstOrDefaultAsync();
+        if (artistUserId != Guid.Empty)
+            await notifications.NotifyAsync(artistUserId, NotificationType.BookingCancelled, "Contratação cancelada", message, $"/shows/{booking.Id}");
+
+        if (booking.ContractorId is not null)
+        {
+            var contractorUserId = await db.Contractors.AsNoTracking()
+                .Where(c => c.Id == booking.ContractorId)
+                .Select(c => c.UserId)
+                .FirstOrDefaultAsync();
+            if (contractorUserId != Guid.Empty)
+                await notifications.NotifyAsync(contractorUserId, NotificationType.BookingCancelled, "Contratação cancelada", message, $"/contractor/solicitacoes/{booking.Id}");
+        }
+
         return (await MapAllAsync([booking])).First();
+    }
+
+    /// <summary>
+    /// Resolve os adicionais da contratação (equipe externa / equipamento externo do artista):
+    /// valida disponibilidade, calcula o valor (percentual sobre a proposta base ou fixo) e
+    /// devolve as linhas a persistir. A soma é acrescida ao Budget da solicitação.
+    /// </summary>
+    private async Task<List<BookingAddon>> ResolveAddonsAsync(Guid artistId, List<BookingAddonItemRequest>? addons, decimal baseBudget)
+    {
+        var result = new List<BookingAddon>();
+        if (addons is null || addons.Count == 0) return result;
+        if (addons.Count > 30)
+            throw new ValidationException("Muitos adicionais selecionados.");
+
+        foreach (var group in addons.GroupBy(a => new { a.ItemType, a.ItemId }).Where(g => g.Count() > 1))
+            throw new ValidationException("Há adicionais repetidos na seleção.");
+
+        var teamIds = addons.Where(a => a.ItemType == AddonItemType.TeamMember).Select(a => a.ItemId).ToList();
+        var equipmentIds = addons.Where(a => a.ItemType == AddonItemType.Equipment).Select(a => a.ItemId).ToList();
+
+        var team = teamIds.Count > 0
+            ? await db.TeamMembers.AsNoTracking()
+                .Where(m => teamIds.Contains(m.Id) && m.ArtistId == artistId && m.AllocationType == AllocationType.Externo)
+                .ToDictionaryAsync(m => m.Id)
+            : [];
+        var equipment = equipmentIds.Count > 0
+            ? await db.Equipment.AsNoTracking()
+                .Where(e => equipmentIds.Contains(e.Id) && e.ArtistId == artistId && e.AllocationType == AllocationType.Externo)
+                .ToDictionaryAsync(e => e.Id)
+            : [];
+
+        foreach (var addon in addons)
+        {
+            if (addon.ItemType == AddonItemType.TeamMember)
+            {
+                var member = team.GetValueOrDefault(addon.ItemId)
+                    ?? throw new ValidationException("Um dos adicionais de equipe não está mais disponível para este artista.");
+                var amount = member.DefaultShareType == ShareType.Percentage
+                    ? decimal.Round(baseBudget * member.DefaultShareValue / 100m, 2)
+                    : member.DefaultShareValue;
+                result.Add(new BookingAddon
+                {
+                    ItemType = addon.ItemType,
+                    ItemId = addon.ItemId,
+                    Name = member.Name,
+                    ShareType = member.DefaultShareType,
+                    ShareValue = member.DefaultShareValue,
+                    Amount = amount
+                });
+            }
+            else if (addon.ItemType == AddonItemType.Equipment)
+            {
+                var eq = equipment.GetValueOrDefault(addon.ItemId)
+                    ?? throw new ValidationException("Um dos adicionais de equipamento não está mais disponível para este artista.");
+                var amount = eq.ShareType == ShareType.Percentage
+                    ? decimal.Round(baseBudget * eq.ShareValue / 100m, 2)
+                    : eq.ShareValue;
+                result.Add(new BookingAddon
+                {
+                    ItemType = addon.ItemType,
+                    ItemId = addon.ItemId,
+                    Name = eq.Name,
+                    ShareType = eq.ShareType,
+                    ShareValue = eq.ShareValue,
+                    Amount = amount
+                });
+            }
+            else
+            {
+                throw new ValidationException("Tipo de adicional inválido.");
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -309,7 +428,9 @@ public class BookingService(
             : (Guid?)await db.Contractors.AsNoTracking()
                 .Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstAsync();
 
-        // RN007: aceite cria/confirma o evento (RN008: bloqueia a agenda)
+        // RN007: aceite cria/confirma o evento (RN008: bloqueia a agenda).
+        // O tempo de deslocamento/montagem do artista expande a reserva antes e depois do show.
+        var buffer = TimeSpan.FromMinutes(artist.TravelTimeMinutes);
         var ev = new Event
         {
             ArtistId = booking.ArtistId,
@@ -317,8 +438,8 @@ public class BookingService(
             BookingRequestId = booking.Id,
             Title = $"{artist.ArtisticName} — {booking.EventType}",
             Type = booking.EventType,
-            StartDateTime = interval.Start,
-            EndDateTime = interval.End,
+            StartDateTime = interval.Start - buffer,
+            EndDateTime = interval.End + buffer,
             Location = booking.Location,
             Description = booking.Message,
             Status = EventStatus.Confirmed
@@ -399,7 +520,22 @@ public class BookingService(
             .Where(c => bookingIds.Contains(c.BookingRequestId))
             .ToDictionaryAsync(c => c.BookingRequestId, c => c.Id);
 
-        return bookings.Select(b => new BookingDto(
+        var addons = await db.BookingAddons.AsNoTracking()
+            .Where(a => bookingIds.Contains(a.BookingRequestId))
+            .ToListAsync();
+        var addonsByBooking = addons
+            .GroupBy(a => a.BookingRequestId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(a => new BookingAddonDto(a.Id, a.ItemType, a.ItemId, a.Name, a.ShareType, a.ShareValue, a.Amount)).ToList());
+
+        return bookings
+            .Select(b =>
+            {
+                var bookingAddons = addonsByBooking.TryGetValue(b.Id, out var bookingAddonList)
+                    ? bookingAddonList
+                    : new List<BookingAddonDto>();
+                return new BookingDto(
             b.Id,
             b.ArtistId,
             artists.GetValueOrDefault(b.ArtistId)?.ArtisticName ?? "Artista",
@@ -421,7 +557,9 @@ public class BookingService(
             b.EventId,
             b.AcceptedProposalId,
             conversations.GetValueOrDefault(b.Id, Guid.Empty),
-            b.CreatedAt)).ToList();
+            b.CreatedAt,
+            Addons: bookingAddons);
+        }).ToList();
     }
 
     private async Task<string> GetContractorNameAsync(Guid contractorId)
@@ -432,16 +570,25 @@ public class BookingService(
             .FirstOrDefaultAsync() ?? "Contratante";
     }
 
-    private async Task<BookingDto> ToDtoAsync(BookingRequest booking, string artistName, string contractorName)
+    private async Task<BookingDto> ToDtoAsync(
+        BookingRequest booking,
+        string artistName,
+        string contractorName,
+        List<BookingAddon>? addons = null)
     {
         var conversation = await db.Conversations.AsNoTracking()
             .FirstOrDefaultAsync(c => c.BookingRequestId == booking.Id);
+
+        var addonDtos = (addons ?? [])
+            .Select(a => new BookingAddonDto(a.Id, a.ItemType, a.ItemId, a.Name, a.ShareType, a.ShareValue, a.Amount))
+            .ToList();
 
         return new BookingDto(
             booking.Id, booking.ArtistId, artistName, null, booking.ContractorId, contractorName,
             booking.IsGuest, booking.GuestCompanyName, booking.IsGuest ? booking.GuestPhone : null,
             booking.EventDate, booking.StartTime, booking.EndTime, booking.Location, booking.EventType,
             booking.EstimatedAudience, booking.Budget, booking.Message, booking.Status,
-            booking.EventId, booking.AcceptedProposalId, conversation?.Id ?? Guid.Empty, booking.CreatedAt);
+            booking.EventId, booking.AcceptedProposalId, conversation?.Id ?? Guid.Empty, booking.CreatedAt,
+            Addons: addonDtos);
     }
 }

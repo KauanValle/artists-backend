@@ -49,7 +49,8 @@ public record SaveArtistRequest(
     List<string> Specialties,
     List<string>? EventTypes,
     List<string> GalleryUrls,
-    List<string> VideoUrls);
+    List<string> VideoUrls,
+    int TravelTimeMinutes = 0);
 
 public record ArtistDto(
     Guid Id,
@@ -72,7 +73,8 @@ public record ArtistDto(
     bool IsPublished,
     double? AverageRating,
     int ReviewCount,
-    decimal? StartingPrice);
+    decimal? StartingPrice,
+    int TravelTimeMinutes);
 
 /// <summary>Card do marketplace (PRD §17): foto, nome, avaliação, categoria, cidade, cachê inicial e disponibilidade.</summary>
 public record ArtistCardDto(

@@ -12,6 +12,10 @@ public class TeamMember : BaseEntity
     public string Role { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>Interno = trabalha para o artista; Externo = adicional que o contratante pode contratar com o show.</summary>
+    public AllocationType AllocationType { get; set; } = AllocationType.Interno;
+
     public ShareType DefaultShareType { get; set; } = ShareType.Percentage;
     public decimal DefaultShareValue { get; set; }
     public string Notes { get; set; } = string.Empty;

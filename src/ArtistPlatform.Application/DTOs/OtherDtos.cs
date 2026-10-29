@@ -111,6 +111,7 @@ public record TeamMemberDto(
     string Role,
     string Phone,
     string Email,
+    AllocationType AllocationType,
     ShareType DefaultShareType,
     decimal DefaultShareValue,
     string Notes);
@@ -121,6 +122,7 @@ public record SaveTeamMemberRequestDto(
     string Role,
     string Phone,
     string Email,
+    AllocationType AllocationType,
     ShareType DefaultShareType,
     decimal DefaultShareValue,
     string Notes);
@@ -136,6 +138,9 @@ public record EquipmentDto(
     string Identifier,
     decimal? WeightKg,
     decimal? Value,
+    AllocationType AllocationType,
+    ShareType ShareType,
+    decimal ShareValue,
     EquipmentStatus Status,
     string Notes);
 
@@ -147,6 +152,9 @@ public record SaveEquipmentRequestDto(
     string Identifier,
     decimal? WeightKg,
     decimal? Value,
+    AllocationType AllocationType,
+    ShareType ShareType,
+    decimal ShareValue,
     EquipmentStatus Status,
     string Notes);
 
@@ -193,3 +201,25 @@ public record ContractorDto(
 public record SaveContractorRequestDto(ContractorType Type, string Name, string? CompanyName, string Phone, string City, string State);
 
 public record UploadResultDto(string Url);
+
+// ─────────────────────────── Adicionais públicos da contratação ───────────────────────────
+
+public record AddonTeamMemberDto(
+    Guid Id,
+    string Name,
+    string Role,
+    AllocationType AllocationType,
+    ShareType ShareType,
+    decimal ShareValue);
+
+public record AddonEquipmentDto(
+    Guid Id,
+    string Name,
+    string Category,
+    AllocationType AllocationType,
+    ShareType ShareType,
+    decimal ShareValue);
+
+public record ArtistAddonsDto(
+    List<AddonTeamMemberDto> TeamMembers,
+    List<AddonEquipmentDto> Equipment);

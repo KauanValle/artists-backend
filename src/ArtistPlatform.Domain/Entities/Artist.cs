@@ -16,5 +16,11 @@ public class Artist : BaseEntity
     public string Phone { get; set; } = default!;
     public string ProfilePhotoUrl { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Tempo de deslocamento/montagem/desmontagem (minutos) reservado antes e depois
+    /// de cada show confirmado na agenda.
+    /// </summary>
+    public int TravelTimeMinutes { get; set; }
+
     public ArtistCategory Category { get; set; } = default!;
 }

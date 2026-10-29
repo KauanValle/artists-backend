@@ -17,6 +17,7 @@ public interface IArtistService
     Task<ArtistDto> SaveOnboardingAsync(Guid userId, SaveArtistRequest request);
     Task PublishAsync(Guid userId, bool publish);
     Task<PagedResult<ArtistCardDto>> SearchAsync(SearchArtistsQuery query);
+    Task<ArtistAddonsDto> GetAddonsAsync(Guid artistId);
     Task<List<CategoryDto>> GetCategoriesAsync();
 }
 
@@ -68,6 +69,7 @@ public class ArtistService(IAppDbContext db) : IArtistService
         artist.Phone = request.Phone.Trim();
         if (!string.IsNullOrWhiteSpace(request.ProfilePhotoUrl))
             artist.ProfilePhotoUrl = request.ProfilePhotoUrl;
+        artist.TravelTimeMinutes = Math.Clamp(request.TravelTimeMinutes, 0, 480);
         artist.UpdatedAt = DateTime.UtcNow;
 
         var profile = await db.ArtistProfiles.FirstOrDefaultAsync(p => p.ArtistId == artist.Id);
@@ -245,6 +247,24 @@ public class ArtistService(IAppDbContext db) : IArtistService
         return new PagedResult<ArtistCardDto>(items, page, pageSize, total);
     }
 
+    /// <summary>Adicionais públicos do artista para a contratação: equipe externa + equipamento externo.</summary>
+    public async Task<ArtistAddonsDto> GetAddonsAsync(Guid artistId)
+    {
+        var teamMembers = await db.TeamMembers.AsNoTracking()
+            .Where(m => m.ArtistId == artistId && m.AllocationType == AllocationType.Externo)
+            .OrderBy(m => m.Name)
+            .Select(m => new AddonTeamMemberDto(m.Id, m.Name, m.Role, m.AllocationType, m.DefaultShareType, m.DefaultShareValue))
+            .ToListAsync();
+
+        var equipment = await db.Equipment.AsNoTracking()
+            .Where(e => e.ArtistId == artistId && e.AllocationType == AllocationType.Externo)
+            .OrderBy(e => e.Name)
+            .Select(e => new AddonEquipmentDto(e.Id, e.Name, e.Category, e.AllocationType, e.ShareType, e.ShareValue))
+            .ToListAsync();
+
+        return new ArtistAddonsDto(teamMembers, equipment);
+    }
+
     public async Task<List<CategoryDto>> GetCategoriesAsync()
     {
         return await db.ArtistCategories.AsNoTracking()
@@ -270,7 +290,8 @@ public class ArtistService(IAppDbContext db) : IArtistService
             profile?.Styles ?? [], profile?.Specialties ?? [], profile?.EventTypes ?? [],
             profile?.GalleryUrls ?? [], profile?.VideoUrls ?? [],
             profile?.Slug ?? string.Empty, profile?.IsPublished ?? false,
-            avg, count, startingPrice);
+            avg, count, startingPrice,
+            artist.TravelTimeMinutes);
     }
 
     private async Task<ArtistDetailPublicDto> BuildPublicDtoAsync(Artist artist)

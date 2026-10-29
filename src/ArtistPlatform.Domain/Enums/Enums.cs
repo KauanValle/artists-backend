@@ -98,7 +98,8 @@ public enum NotificationType
     UpcomingShow = 7,
     PaymentOverdue = 8,
     NewReview = 9,
-    SubscriptionConfirmed = 10
+    SubscriptionConfirmed = 10,
+    BookingCancelled = 11
 }
 
 /// <summary>Divisão de cachê percentual ou fixa (PRD §13).</summary>
@@ -112,6 +113,20 @@ public enum ContractorType
 {
     Person = 1,
     Company = 2
+}
+
+/// <summary>Interno = exclusivo do artista; Externo = adicional oferecido na contratação do show.</summary>
+public enum AllocationType
+{
+    Interno = 1,
+    Externo = 2
+}
+
+/// <summary>Origem do adicional da contratação: membro de equipe externo ou equipamento externo.</summary>
+public enum AddonItemType
+{
+    TeamMember = 1,
+    Equipment = 2
 }
 
 /// <summary>Cargo de acesso da conta: gratuito tem funções bloqueadas; assinante tem acesso total.</summary>

@@ -42,6 +42,7 @@ public class TeamService(IAppDbContext db, ICurrentUserService currentUser) : IT
             Role = request.Role ?? string.Empty,
             Phone = request.Phone ?? string.Empty,
             Email = request.Email ?? string.Empty,
+            AllocationType = request.AllocationType,
             DefaultShareType = request.DefaultShareType,
             DefaultShareValue = request.DefaultShareValue,
             Notes = request.Notes ?? string.Empty
@@ -91,5 +92,5 @@ public class TeamService(IAppDbContext db, ICurrentUserService currentUser) : IT
     }
 
     private static TeamMemberDto ToDto(TeamMember m) => new(
-        m.Id, m.Name, m.PhotoUrl, m.Role, m.Phone, m.Email, m.DefaultShareType, m.DefaultShareValue, m.Notes);
+        m.Id, m.Name, m.PhotoUrl, m.Role, m.Phone, m.Email, m.AllocationType, m.DefaultShareType, m.DefaultShareValue, m.Notes);
 }

@@ -17,6 +17,12 @@ public class ArtistsController(IArtistService artistService, ICurrentUserService
     public async Task<ActionResult<PagedResult<ArtistCardDto>>> Search([FromQuery] SearchArtistsQuery query)
         => Ok(await artistService.SearchAsync(query));
 
+    /// <summary>Adicionais públicos do artista (equipe externa + equipamento externo) para a contratação.</summary>
+    [HttpGet("{artistId:guid}/addons")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ArtistAddonsDto>> GetAddons(Guid artistId)
+        => Ok(await artistService.GetAddonsAsync(artistId));
+
     /// <summary>Perfil público por id.</summary>
     [HttpGet("{id:guid}")]
     [AllowAnonymous]

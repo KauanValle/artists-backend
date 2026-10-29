@@ -14,5 +14,13 @@ public class Equipment : BaseEntity
     public decimal? WeightKg { get; set; }
     public decimal? Value { get; set; }
     public EquipmentStatus Status { get; set; } = EquipmentStatus.Available;
+
+    /// <summary>Interno = uso exclusivo do artista; Externo = adicional que o contratante pode contratar com o show.</summary>
+    public AllocationType AllocationType { get; set; } = AllocationType.Interno;
+
+    /// <summary>Custo do adicional sobre a proposta: porcentagem do cachê ou valor fixo.</summary>
+    public ShareType ShareType { get; set; } = ShareType.Fixed;
+    public decimal ShareValue { get; set; }
+
     public string Notes { get; set; } = string.Empty;
 }

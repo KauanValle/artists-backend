@@ -28,6 +28,7 @@ public class ArtistConfiguration : IEntityTypeConfiguration<Artist>
         builder.Property(a => a.ProfilePhotoUrl).HasMaxLength(500);
         builder.HasIndex(a => a.UserId).IsUnique();
         builder.HasOne(a => a.Category).WithMany().HasForeignKey(a => a.CategoryId);
+        builder.Property(a => a.TravelTimeMinutes).HasDefaultValue(0);
     }
 }
 
@@ -86,6 +87,18 @@ public class ContractorConfiguration : IEntityTypeConfiguration<Contractor>
         builder.Property(c => c.City).HasMaxLength(120);
         builder.Property(c => c.State).HasMaxLength(2);
         builder.HasIndex(c => c.UserId).IsUnique();
+    }
+}
+
+public class BookingAddonConfiguration : IEntityTypeConfiguration<BookingAddon>
+{
+    public void Configure(EntityTypeBuilder<BookingAddon> builder)
+    {
+        builder.ToTable("BookingAddons");
+        builder.Property(a => a.Name).HasMaxLength(200).IsRequired();
+        builder.Property(a => a.ShareValue).HasPrecision(12, 2);
+        builder.Property(a => a.Amount).HasPrecision(12, 2);
+        builder.HasIndex(a => a.BookingRequestId);
     }
 }
 
@@ -220,6 +233,7 @@ public class TeamMemberConfiguration : IEntityTypeConfiguration<TeamMember>
     public void Configure(EntityTypeBuilder<TeamMember> builder)
     {
         builder.ToTable("TeamMembers");
+        builder.Property(m => m.AllocationType).HasDefaultValue(AllocationType.Interno);
         builder.Property(m => m.Name).HasMaxLength(160).IsRequired();
         builder.Property(m => m.PhotoUrl).HasMaxLength(500);
         builder.Property(m => m.Role).HasMaxLength(80);
@@ -246,6 +260,9 @@ public class EquipmentConfiguration : IEntityTypeConfiguration<Equipment>
     public void Configure(EntityTypeBuilder<Equipment> builder)
     {
         builder.ToTable("Equipment");
+        builder.Property(e => e.AllocationType).HasDefaultValue(AllocationType.Interno);
+        builder.Property(e => e.ShareType).HasDefaultValue(ShareType.Fixed);
+        builder.Property(e => e.ShareValue).HasPrecision(12, 2).HasDefaultValue(0m);
         builder.Property(e => e.Name).HasMaxLength(160).IsRequired();
         builder.Property(e => e.Category).HasMaxLength(80);
         builder.Property(e => e.Brand).HasMaxLength(80);

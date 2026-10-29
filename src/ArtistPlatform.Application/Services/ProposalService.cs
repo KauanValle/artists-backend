@@ -189,7 +189,9 @@ public class ProposalService(
         proposal.Status = ProposalStatus.Accepted;
         proposal.RespondedAt = clock.UtcNow;
 
-        // 2) evento criado/confirmado (RN007) — bloqueia a agenda (RN008)
+        // 2) evento criado/confirmado (RN007) — bloqueia a agenda (RN008).
+        // O tempo de deslocamento/montagem do artista expande a reserva antes e depois do show.
+        var buffer = TimeSpan.FromMinutes(artist.TravelTimeMinutes);
         var ev = new Event
         {
             ArtistId = proposal.ArtistId,
@@ -197,8 +199,8 @@ public class ProposalService(
             BookingRequestId = booking.Id,
             Title = $"{artist.ArtisticName} — {booking.EventType}",
             Type = booking.EventType,
-            StartDateTime = interval.Start,
-            EndDateTime = interval.End,
+            StartDateTime = interval.Start - buffer,
+            EndDateTime = interval.End + buffer,
             Location = booking.Location,
             Description = booking.Message,
             Status = EventStatus.Confirmed

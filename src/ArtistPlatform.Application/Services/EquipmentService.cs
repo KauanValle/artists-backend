@@ -44,6 +44,9 @@ public class EquipmentService(IAppDbContext db, ICurrentUserService currentUser)
             Identifier = request.Identifier ?? string.Empty,
             WeightKg = request.WeightKg,
             Value = request.Value,
+            AllocationType = request.AllocationType,
+            ShareType = request.ShareType,
+            ShareValue = request.ShareValue,
             Status = request.Status,
             Notes = request.Notes ?? string.Empty
         };
@@ -67,6 +70,9 @@ public class EquipmentService(IAppDbContext db, ICurrentUserService currentUser)
         equipment.Identifier = request.Identifier ?? string.Empty;
         equipment.WeightKg = request.WeightKg;
         equipment.Value = request.Value;
+        equipment.AllocationType = request.AllocationType;
+        equipment.ShareType = request.ShareType;
+        equipment.ShareValue = request.ShareValue;
         equipment.Status = request.Status;
         equipment.Notes = request.Notes ?? string.Empty;
         equipment.UpdatedAt = DateTime.UtcNow;
@@ -84,5 +90,5 @@ public class EquipmentService(IAppDbContext db, ICurrentUserService currentUser)
     }
 
     private static EquipmentDto ToDto(Equipment e) => new(
-        e.Id, e.Name, e.Category, e.Brand, e.Model, e.Identifier, e.WeightKg, e.Value, e.Status, e.Notes);
+        e.Id, e.Name, e.Category, e.Brand, e.Model, e.Identifier, e.WeightKg, e.Value, e.AllocationType, e.ShareType, e.ShareValue, e.Status, e.Notes);
 }

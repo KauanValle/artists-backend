@@ -33,4 +33,5 @@ public interface IAppDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<Billing> Billings { get; }
     DbSet<SignatureContract> SignatureContracts { get; }
+    DbSet<BookingAddon> BookingAddons { get; }
 }
