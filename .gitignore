@@ -1,3 +1,11 @@
-# .NET
+## Build artifacts
 **/bin/
 **/obj/
+
+## Arquivos enviados em teste local
+src/ArtistPlatform.Api/wwwroot/uploads/
+
+## IDE
+.idea/
+.vs/
+*.user

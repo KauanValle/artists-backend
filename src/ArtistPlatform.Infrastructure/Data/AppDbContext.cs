@@ -33,6 +33,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Billing> Billings => Set<Billing>();
     public DbSet<SignatureContract> SignatureContracts => Set<SignatureContract>();
+    public DbSet<AppSetting> Settings => Set<AppSetting>();
     public DbSet<BookingAddon> BookingAddons => Set<BookingAddon>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

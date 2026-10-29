@@ -102,6 +102,17 @@ public class BookingAddonConfiguration : IEntityTypeConfiguration<BookingAddon>
     }
 }
 
+public class AppSettingConfiguration : IEntityTypeConfiguration<AppSetting>
+{
+    public void Configure(EntityTypeBuilder<AppSetting> builder)
+    {
+        builder.ToTable("AppSettings");
+        builder.HasKey(s => s.Key);
+        builder.Property(s => s.Key).HasMaxLength(100).IsRequired();
+        builder.Property(s => s.Value).HasMaxLength(2000);
+    }
+}
+
 public class SignatureContractConfiguration : IEntityTypeConfiguration<SignatureContract>
 {
     public void Configure(EntityTypeBuilder<SignatureContract> builder)
