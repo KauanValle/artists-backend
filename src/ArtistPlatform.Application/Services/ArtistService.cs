@@ -82,6 +82,15 @@ public class ArtistService(IAppDbContext db) : IArtistService
             };
             db.ArtistProfiles.Add(profile);
         }
+        else
+        {
+            // O slug acompanha o nome artístico: regenera apenas quando o nome muda
+            // de verdade (o próprio slug atual pode carregar sufixo de unicidade).
+            var baseSlug = Slugify(request.ArtisticName);
+            var slugDoMesmoNome = profile.Slug == baseSlug || profile.Slug.StartsWith(baseSlug + "-");
+            if (!slugDoMesmoNome)
+                profile.Slug = await GenerateUniqueSlugAsync(request.ArtisticName);
+        }
 
         profile.Description = request.Description ?? string.Empty;
         profile.Styles = request.Styles ?? [];
