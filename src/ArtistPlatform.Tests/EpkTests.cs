@@ -4,6 +4,7 @@ using ArtistPlatform.Application.Services;
 using ArtistPlatform.Domain.Entities;
 using ArtistPlatform.Domain.Enums;
 using ArtistPlatform.Infrastructure.Data;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArtistPlatform.Tests;
@@ -36,9 +37,14 @@ public class EpkTests
     {
         var (db, _, service, artist) = Seed();
 
-        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("Bio exclusiva do EPK."));
+        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest(
+            "Bio exclusiva do EPK.",
+            ["/api/files/owner1/a.jpg"],
+            ["https://youtube.com/watch?v=abc"]));
 
         Assert.Equal("Bio exclusiva do EPK.", result.Bio);
+        Assert.Equal("/api/files/owner1/a.jpg", Assert.Single(result.PhotoUrls));
+        Assert.Equal("https://youtube.com/watch?v=abc", Assert.Single(result.VideoUrls));
         Assert.Equal(1, await db.ArtistEpks.CountAsync());
     }
 
@@ -46,9 +52,9 @@ public class EpkTests
     public async Task Save_DuasVezes_AtualizaSemDuplicar()
     {
         var (db, _, service, artist) = Seed();
-        await service.SaveAsync(artist.UserId, new SaveEpkRequest("primeira versão"));
+        await service.SaveAsync(artist.UserId, new SaveEpkRequest("primeira versão", null, null));
 
-        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("versão final"));
+        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("versão final", null, null));
 
         Assert.Equal("versão final", result.Bio);
         Assert.Equal(1, await db.ArtistEpks.CountAsync());
@@ -58,9 +64,9 @@ public class EpkTests
     public async Task Save_Vazio_LimpaBio()
     {
         var (_, _, service, artist) = Seed();
-        await service.SaveAsync(artist.UserId, new SaveEpkRequest("bio"));
+        await service.SaveAsync(artist.UserId, new SaveEpkRequest("bio", null, null));
 
-        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("   "));
+        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("   ", null, null));
 
         Assert.Equal(string.Empty, result.Bio);
     }
@@ -71,7 +77,7 @@ public class EpkTests
         var (_, _, service, artist) = Seed();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(new string('a', 4001))));
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(new string('a', 4001), null, null)));
     }
 
     [Fact]
@@ -83,6 +89,47 @@ public class EpkTests
 
         Assert.Equal(artist.Id, result.ArtistId);
         Assert.Equal(string.Empty, result.Bio);
+    }
+
+    [Fact]
+    public async Task Save_Midia_ExcedeLimites_Rejeita()
+    {
+        var (_, _, service, artist) = Seed();
+
+        var doze = Enumerable.Range(1, 12).Select(i => $"/api/files/owner/f{i}.jpg").ToList();
+        var treze = Enumerable.Range(1, 13).Select(i => $"/api/files/owner/f{i}.jpg").ToList();
+
+        await service.SaveAsync(artist.UserId, new SaveEpkRequest(null, doze, null));
+        await Assert.ThrowsAsync<ValidationException>(
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, treze, null)));
+        await Assert.ThrowsAsync<ValidationException>(
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, null,
+                Enumerable.Range(1, 9).Select(i => $"https://youtu.be/v{i}").ToList())));
+    }
+
+    [Fact]
+    public async Task Save_Midia_UrlInvalida_RejeitaEDeduplica()
+    {
+        var (_, _, service, artist) = Seed();
+
+        await Assert.ThrowsAsync<ValidationException>(
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, ["não é url"], null)));
+
+        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest(null,
+            ["/api/files/owner/a.jpg", "/api/files/owner/a.jpg", ""], null));
+
+        Assert.Single(result.PhotoUrls);
+    }
+
+    [Fact]
+    public async Task GetByArtist_SemMidia_RetornaListasVazias()
+    {
+        var (_, _, service, artist) = Seed();
+
+        var result = await service.GetByArtistAsync(artist.Id);
+
+        Assert.Empty(result.PhotoUrls);
+        Assert.Empty(result.VideoUrls);
     }
 
     [Fact]

@@ -14,4 +14,10 @@ public class ArtistEpk : BaseEntity
 
     /// <summary>Descrição exclusiva do EPK — se vazia, usa a descrição do perfil.</summary>
     public string Bio { get; set; } = string.Empty;
+
+    /// <summary>Fotos do kit — se vazia, a landing usa a galeria do perfil.</summary>
+    public List<string> PhotoUrls { get; set; } = [];
+
+    /// <summary>Vídeos do kit (MP4 enviado ou link do YouTube) — se vazia, usa os do perfil.</summary>
+    public List<string> VideoUrls { get; set; } = [];
 }
