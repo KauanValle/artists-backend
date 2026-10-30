@@ -137,7 +137,8 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         // Os eventos já são gravados com o buffer de deslocamento aplicado — sem dupla expansão.
         var query = db.Events.AsNoTracking()
             .Where(e => e.ArtistId == artistId &&
-                        (e.Status == EventStatus.Scheduled || e.Status == EventStatus.Confirmed));
+                        (e.Status == EventStatus.Scheduled || e.Status == EventStatus.Confirmed ||
+                         e.Status == EventStatus.PreReserved));
 
         if (from.HasValue)
         {
@@ -150,7 +151,7 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
             query = query.Where(e => e.StartDateTime < toDt);
         }
 
-        var events = await query.Select(e => new { e.StartDateTime, e.EndDateTime }).ToListAsync();
+        var events = await query.Select(e => new { e.StartDateTime, e.EndDateTime, e.Status }).ToListAsync();
 
         var slots = new List<BusySlotDto>();
         foreach (var ev in events)
@@ -161,9 +162,12 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
             {
                 var dayStartUtc = day.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
                 var dayEndUtc = day.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+                var status = ev.Status == EventStatus.PreReserved
+                    ? Domain.Enums.EventStatus.PreReserved.ToString()
+                    : ev.Status.ToString();
                 var startTime = ev.StartDateTime < dayStartUtc ? TimeOnly.MinValue : TimeOnly.FromDateTime(ev.StartDateTime);
                 var endTime = ev.EndDateTime > dayEndUtc ? TimeOnly.MaxValue : TimeOnly.FromDateTime(ev.EndDateTime);
-                slots.Add(new BusySlotDto(day, startTime, endTime));
+                slots.Add(new BusySlotDto(day, startTime, endTime, status));
                 day = day.AddDays(1);
             }
         }
