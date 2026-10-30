@@ -235,6 +235,23 @@ public record SaveSocialLinkRequest(string? Platform, string? Handle);
 // ─────────────────────────── EPK do artista ───────────────────────────
 
 /// <summary>Conteúdo do EPK público (/epk/{slug}); campos vazios caem no valor do perfil.</summary>
-public record EpkDto(Guid ArtistId, string Bio, List<string> PhotoUrls, List<string> VideoUrls);
+public record EpkDto(
+    Guid ArtistId,
+    string Bio,
+    List<string> PhotoUrls,
+    List<string> VideoUrls,
+    List<string> Songs,
+    string? SpotifyUrl,
+    string? YouTubeUrl,
+    string? SoundCloudUrl,
+    string? SpotifyPlaylistUrl);
 
-public record SaveEpkRequest(string? Bio, List<string>? PhotoUrls, List<string>? VideoUrls);
+public record SaveEpkRequest(
+    string? Bio,
+    List<string>? PhotoUrls,
+    List<string>? VideoUrls,
+    List<string>? Songs,
+    string? SpotifyUrl,
+    string? YouTubeUrl,
+    string? SoundCloudUrl,
+    string? SpotifyPlaylistUrl);

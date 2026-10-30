@@ -183,6 +183,10 @@ public class ArtistEpkConfiguration : IEntityTypeConfiguration<ArtistEpk>
     {
         builder.ToTable("ArtistEpks");
         builder.Property(e => e.Bio).HasMaxLength(4000);
+        builder.Property(e => e.SpotifyUrl).HasMaxLength(500);
+        builder.Property(e => e.YouTubeUrl).HasMaxLength(500);
+        builder.Property(e => e.SoundCloudUrl).HasMaxLength(500);
+        builder.Property(e => e.SpotifyPlaylistUrl).HasMaxLength(500);
         // Um EPK por artista.
         builder.HasIndex(e => e.ArtistId).IsUnique();
     }

@@ -23,13 +23,24 @@ public class EpkService(IAppDbContext db, ICurrentUserService currentUser) : IEp
     private const int BioMaxLength = 4000;
     private const int MaxPhotos = 12;
     private const int MaxVideos = 8;
+    private const int MaxSongs = 15;
+    private const int SongMaxLength = 120;
     private const int UrlMaxLength = 500;
 
     public async Task<EpkDto> GetByArtistAsync(Guid artistId)
     {
         var epk = await db.ArtistEpks.AsNoTracking()
             .FirstOrDefaultAsync(e => e.ArtistId == artistId);
-        return new EpkDto(artistId, epk?.Bio ?? string.Empty, epk?.PhotoUrls ?? [], epk?.VideoUrls ?? []);
+        return new EpkDto(
+            artistId,
+            epk?.Bio ?? string.Empty,
+            epk?.PhotoUrls ?? [],
+            epk?.VideoUrls ?? [],
+            epk?.Songs ?? [],
+            epk?.SpotifyUrl,
+            epk?.YouTubeUrl,
+            epk?.SoundCloudUrl,
+            epk?.SpotifyPlaylistUrl);
     }
 
     public async Task<EpkDto> SaveAsync(Guid userId, SaveEpkRequest request)
@@ -47,6 +58,8 @@ public class EpkService(IAppDbContext db, ICurrentUserService currentUser) : IEp
         if (videos.Count > MaxVideos)
             throw new ValidationException($"O EPK aceita no máximo {MaxVideos} vídeos.");
 
+        var songs = SanitizeSongs(request.Songs);
+
         var epk = await db.ArtistEpks.FirstOrDefaultAsync(e => e.ArtistId == artistId);
         if (epk is null)
         {
@@ -56,10 +69,16 @@ public class EpkService(IAppDbContext db, ICurrentUserService currentUser) : IEp
         epk.Bio = bio;
         epk.PhotoUrls = photos;
         epk.VideoUrls = videos;
+        epk.Songs = songs;
+        epk.SpotifyUrl = CleanUrl(request.SpotifyUrl, "Spotify");
+        epk.YouTubeUrl = CleanUrl(request.YouTubeUrl, "YouTube");
+        epk.SoundCloudUrl = CleanUrl(request.SoundCloudUrl, "SoundCloud");
+        epk.SpotifyPlaylistUrl = CleanUrl(request.SpotifyPlaylistUrl, "playlist do Spotify");
         epk.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        return new EpkDto(artistId, epk.Bio, epk.PhotoUrls, epk.VideoUrls);
+        return new EpkDto(artistId, epk.Bio, epk.PhotoUrls, epk.VideoUrls, epk.Songs,
+            epk.SpotifyUrl, epk.YouTubeUrl, epk.SoundCloudUrl, epk.SpotifyPlaylistUrl);
     }
 
     /// <summary>Remove vazios/duplicatas, corta espaços e valida o formato das URLs de mídia.</summary>
@@ -84,5 +103,40 @@ public class EpkService(IAppDbContext db, ICurrentUserService currentUser) : IEp
                 clean.Add(url);
         }
         return clean;
+    }
+
+    /// <summary>Remove vazios/duplicatas e valida o tamanho dos títulos das músicas.</summary>
+    private static List<string> SanitizeSongs(List<string>? songs)
+    {
+        if (songs is null || songs.Count == 0)
+            return [];
+
+        var clean = new List<string>();
+        foreach (var raw in songs)
+        {
+            var song = raw?.Trim() ?? string.Empty;
+            if (song.Length == 0)
+                continue;
+            if (song.Length > SongMaxLength)
+                throw new ValidationException($"O título da música deve ter no máximo {SongMaxLength} caracteres.");
+            if (!clean.Contains(song, StringComparer.OrdinalIgnoreCase))
+                clean.Add(song);
+        }
+        if (clean.Count > MaxSongs)
+            throw new ValidationException($"O EPK aceita no máximo {MaxSongs} músicas.");
+        return clean;
+    }
+
+    /// <summary>Normaliza uma URL única de plataforma; vazio vira null (não configurada).</summary>
+    private static string? CleanUrl(string? raw, string campo)
+    {
+        var url = raw?.Trim() ?? string.Empty;
+        if (url.Length == 0)
+            return null;
+        if (url.Length > UrlMaxLength)
+            throw new ValidationException($"A URL de {campo} é muito longa (máximo {UrlMaxLength} caracteres).");
+        if (!Uri.IsWellFormedUriString(url, UriKind.Absolute) || !url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException($"A URL de {campo} é inválida — informe um link começando com http(s)://.");
+        return url;
     }
 }

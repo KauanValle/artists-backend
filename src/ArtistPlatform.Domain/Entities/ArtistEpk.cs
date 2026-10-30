@@ -20,4 +20,14 @@ public class ArtistEpk : BaseEntity
 
     /// <summary>Vídeos do kit (MP4 enviado ou link do YouTube) — se vazia, usa os do perfil.</summary>
     public List<string> VideoUrls { get; set; } = [];
+
+    /// <summary>Principais músicas do repertório exibidas no EPK.</summary>
+    public List<string> Songs { get; set; } = [];
+
+    public string? SpotifyUrl { get; set; }
+    public string? YouTubeUrl { get; set; }
+    public string? SoundCloudUrl { get; set; }
+
+    /// <summary>Link da playlist oficial do Spotify exibido no banner do EPK.</summary>
+    public string? SpotifyPlaylistUrl { get; set; }
 }

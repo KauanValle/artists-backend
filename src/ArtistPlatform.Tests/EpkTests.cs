@@ -40,7 +40,12 @@ public class EpkTests
         var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest(
             "Bio exclusiva do EPK.",
             ["/api/files/owner1/a.jpg"],
-            ["https://youtube.com/watch?v=abc"]));
+            ["https://youtube.com/watch?v=abc"],
+            ["Mó Paz", "Vida Louca"],
+            "https://open.spotify.com/artist/xyz",
+            "https://youtube.com/@dj",
+            "https://soundcloud.com/dj",
+            "https://open.spotify.com/playlist/pl1"));
 
         Assert.Equal("Bio exclusiva do EPK.", result.Bio);
         Assert.Equal("/api/files/owner1/a.jpg", Assert.Single(result.PhotoUrls));
@@ -52,9 +57,9 @@ public class EpkTests
     public async Task Save_DuasVezes_AtualizaSemDuplicar()
     {
         var (db, _, service, artist) = Seed();
-        await service.SaveAsync(artist.UserId, new SaveEpkRequest("primeira versão", null, null));
+        await service.SaveAsync(artist.UserId, new SaveEpkRequest("primeira versão", null, null, null, null, null, null, null));
 
-        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("versão final", null, null));
+        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("versão final", null, null, null, null, null, null, null));
 
         Assert.Equal("versão final", result.Bio);
         Assert.Equal(1, await db.ArtistEpks.CountAsync());
@@ -64,9 +69,9 @@ public class EpkTests
     public async Task Save_Vazio_LimpaBio()
     {
         var (_, _, service, artist) = Seed();
-        await service.SaveAsync(artist.UserId, new SaveEpkRequest("bio", null, null));
+        await service.SaveAsync(artist.UserId, new SaveEpkRequest("bio", null, null, null, null, null, null, null));
 
-        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("   ", null, null));
+        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest("   ", null, null, null, null, null, null, null));
 
         Assert.Equal(string.Empty, result.Bio);
     }
@@ -77,7 +82,7 @@ public class EpkTests
         var (_, _, service, artist) = Seed();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(new string('a', 4001), null, null)));
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(new string('a', 4001), null, null, null, null, null, null, null)));
     }
 
     [Fact]
@@ -99,12 +104,12 @@ public class EpkTests
         var doze = Enumerable.Range(1, 12).Select(i => $"/api/files/owner/f{i}.jpg").ToList();
         var treze = Enumerable.Range(1, 13).Select(i => $"/api/files/owner/f{i}.jpg").ToList();
 
-        await service.SaveAsync(artist.UserId, new SaveEpkRequest(null, doze, null));
+        await service.SaveAsync(artist.UserId, new SaveEpkRequest(null, doze, null, null, null, null, null, null));
         await Assert.ThrowsAsync<ValidationException>(
-            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, treze, null)));
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, treze, null, null, null, null, null, null)));
         await Assert.ThrowsAsync<ValidationException>(
             () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, null,
-                Enumerable.Range(1, 9).Select(i => $"https://youtu.be/v{i}").ToList())));
+                Enumerable.Range(1, 9).Select(i => $"https://youtu.be/v{i}").ToList(), null, null, null, null, null)));
     }
 
     [Fact]
@@ -113,10 +118,10 @@ public class EpkTests
         var (_, _, service, artist) = Seed();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, ["não é url"], null)));
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, ["não é url"], null, null, null, null, null, null)));
 
         var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest(null,
-            ["/api/files/owner/a.jpg", "/api/files/owner/a.jpg", ""], null));
+            ["/api/files/owner/a.jpg", "/api/files/owner/a.jpg", ""], null, null, null, null, null, null));
 
         Assert.Single(result.PhotoUrls);
     }
@@ -130,6 +135,50 @@ public class EpkTests
 
         Assert.Empty(result.PhotoUrls);
         Assert.Empty(result.VideoUrls);
+    }
+
+    [Fact]
+    public async Task Save_Repertorio_PlataformasEPlaylist()
+    {
+        var (_, _, service, artist) = Seed();
+
+        var result = await service.SaveAsync(artist.UserId, new SaveEpkRequest(
+            null, null, null,
+            ["Mó Paz", " Mó Paz ", "Vida Louca", ""],
+            "https://open.spotify.com/artist/xyz",
+            "  ",
+            null,
+            "https://open.spotify.com/playlist/pl1"));
+
+        Assert.Equal(["Mó Paz", "Vida Louca"], result.Songs);
+        Assert.Equal("https://open.spotify.com/artist/xyz", result.SpotifyUrl);
+        Assert.Null(result.YouTubeUrl);
+        Assert.Null(result.SoundCloudUrl);
+        Assert.Equal("https://open.spotify.com/playlist/pl1", result.SpotifyPlaylistUrl);
+    }
+
+    [Fact]
+    public async Task Save_Repertorio_ExcedeLimites_Rejeita()
+    {
+        var (_, _, service, artist) = Seed();
+
+        var dezesseis = Enumerable.Range(1, 16).Select(i => $"Música {i}").ToList();
+        await Assert.ThrowsAsync<ValidationException>(
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, null, null, dezesseis, null, null, null, null)));
+        await Assert.ThrowsAsync<ValidationException>(
+            () => service.SaveAsync(artist.UserId, new SaveEpkRequest(null, null, null, null, null, null, null, "nao-e-url")));
+    }
+
+    [Fact]
+    public async Task GetByArtist_SemRepertorio_RetornaVazio()
+    {
+        var (_, _, service, artist) = Seed();
+
+        var result = await service.GetByArtistAsync(artist.Id);
+
+        Assert.Empty(result.Songs);
+        Assert.Null(result.SpotifyUrl);
+        Assert.Null(result.SpotifyPlaylistUrl);
     }
 
     [Fact]
