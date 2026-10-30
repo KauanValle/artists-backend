@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IContractorService, ContractorService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<ISocialLinkService, SocialLinkService>();
+        services.AddScoped<IEpkService, EpkService>();
         return services;
     }
 }

@@ -231,3 +231,10 @@ public record SocialLinkDto(Guid ArtistId, string Platform, string Handle, strin
 
 /// <summary>Salva a rede social do artista logado; handle vazio remove o vínculo.</summary>
 public record SaveSocialLinkRequest(string? Platform, string? Handle);
+
+// ─────────────────────────── EPK do artista ───────────────────────────
+
+/// <summary>Conteúdo do EPK público (/epk/{slug}); campos vazios caem no valor do perfil.</summary>
+public record EpkDto(Guid ArtistId, string Bio);
+
+public record SaveEpkRequest(string? Bio);

@@ -36,6 +36,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<AppSetting> Settings => Set<AppSetting>();
     public DbSet<BookingAddon> BookingAddons => Set<BookingAddon>();
     public DbSet<ArtistSocialLink> ArtistSocialLinks => Set<ArtistSocialLink>();
+    public DbSet<ArtistEpk> ArtistEpks => Set<ArtistEpk>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

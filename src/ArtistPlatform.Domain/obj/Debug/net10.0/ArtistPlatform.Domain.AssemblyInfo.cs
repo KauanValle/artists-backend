@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ArtistPlatform.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+035e93d72d1c3c12709d3f0124c30fc711a284aa")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5334d51f7ff76736caec43a3b5784b6a4c162b62")]
 [assembly: System.Reflection.AssemblyProductAttribute("ArtistPlatform.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ArtistPlatform.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

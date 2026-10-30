@@ -177,6 +177,17 @@ public class ArtistSocialLinkConfiguration : IEntityTypeConfiguration<ArtistSoci
     }
 }
 
+public class ArtistEpkConfiguration : IEntityTypeConfiguration<ArtistEpk>
+{
+    public void Configure(EntityTypeBuilder<ArtistEpk> builder)
+    {
+        builder.ToTable("ArtistEpks");
+        builder.Property(e => e.Bio).HasMaxLength(4000);
+        // Um EPK por artista.
+        builder.HasIndex(e => e.ArtistId).IsUnique();
+    }
+}
+
 public class BookingRequestConfiguration : IEntityTypeConfiguration<BookingRequest>
 {
     public void Configure(EntityTypeBuilder<BookingRequest> builder)

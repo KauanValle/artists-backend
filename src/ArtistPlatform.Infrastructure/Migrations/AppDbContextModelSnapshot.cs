@@ -187,6 +187,34 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.ToTable("ArtistCategories", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.ArtistEpk", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ArtistId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Bio")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArtistId")
+                        .IsUnique();
+
+                    b.ToTable("ArtistEpks", (string)null);
+                });
+
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.ArtistFee", b =>
                 {
                     b.Property<Guid>("Id")
