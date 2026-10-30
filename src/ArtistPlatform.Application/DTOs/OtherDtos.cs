@@ -223,3 +223,11 @@ public record AddonEquipmentDto(
 public record ArtistAddonsDto(
     List<AddonTeamMemberDto> TeamMembers,
     List<AddonEquipmentDto> Equipment);
+
+// ─────────────────────────── Redes sociais do artista ───────────────────────────
+
+/// <summary>Rede social exibida na página pública — Url pronta para o link (ex.: instagram.com/dj.peruca).</summary>
+public record SocialLinkDto(Guid ArtistId, string Platform, string Handle, string Url);
+
+/// <summary>Salva a rede social do artista logado; handle vazio remove o vínculo.</summary>
+public record SaveSocialLinkRequest(string? Platform, string? Handle);

@@ -35,4 +35,5 @@ public interface IAppDbContext
     DbSet<SignatureContract> SignatureContracts { get; }
     DbSet<AppSetting> Settings { get; }
     DbSet<BookingAddon> BookingAddons { get; }
+    DbSet<ArtistSocialLink> ArtistSocialLinks { get; }
 }

@@ -143,3 +143,12 @@ CRUD padrão: `GET`, `POST`, `PUT /{id}`, `DELETE /{id}`.
 | GET / PUT `{id}/read` / PUT `read-all` | `/notifications` (+`unreadOnly`) · `/notifications/unread-count` | ✔ | in-app (PRD §23) |
 | GET / PUT `/contractors/me` | | Contratante | |
 | POST | `/uploads` (multipart `file`) | ✔ | JPEG/PNG/WebP/MP4 ≤ 10 MB → `{ url }` |
+
+## /api/social-links
+
+Redes sociais do artista exibidas na página pública (por enquanto apenas Instagram).
+
+| Método | Rota | Auth | Observação |
+|---|---|---|---|
+| GET | `/social-links/{artistId}` | — | `[{ artistId, platform, handle, url }]` |
+| PUT | `/social-links` — `{ platform: "Instagram", handle }` | Artista | Aceita `@arroba` ou URL do perfil; handle vazio remove o vínculo (204) |

@@ -165,6 +165,18 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
     }
 }
 
+public class ArtistSocialLinkConfiguration : IEntityTypeConfiguration<ArtistSocialLink>
+{
+    public void Configure(EntityTypeBuilder<ArtistSocialLink> builder)
+    {
+        builder.ToTable("ArtistSocialLinks");
+        builder.Property(l => l.Platform).HasMaxLength(40).IsRequired();
+        builder.Property(l => l.Handle).HasMaxLength(100).IsRequired();
+        // Uma entrada por rede social do artista.
+        builder.HasIndex(l => new { l.ArtistId, l.Platform }).IsUnique();
+    }
+}
+
 public class BookingRequestConfiguration : IEntityTypeConfiguration<BookingRequest>
 {
     public void Configure(EntityTypeBuilder<BookingRequest> builder)

@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IFavoriteService, FavoriteService>();
         services.AddScoped<IContractorService, ContractorService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<ISocialLinkService, SocialLinkService>();
         return services;
     }
 }

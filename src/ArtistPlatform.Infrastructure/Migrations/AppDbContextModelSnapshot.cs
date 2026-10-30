@@ -284,6 +284,39 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.ToTable("ArtistProfiles", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.ArtistSocialLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ArtistId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Handle")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArtistId", "Platform")
+                        .IsUnique();
+
+                    b.ToTable("ArtistSocialLinks", (string)null);
+                });
+
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.Billing", b =>
                 {
                     b.Property<Guid>("Id")
