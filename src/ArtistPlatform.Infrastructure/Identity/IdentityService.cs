@@ -3,6 +3,7 @@ using ArtistPlatform.Application.DTOs;
 using ArtistPlatform.Application.Interfaces;
 using ArtistPlatform.Application.Services;
 using ArtistPlatform.Domain.Entities;
+using ArtistPlatform.Domain.Common;
 using ArtistPlatform.Domain.Enums;
 using ArtistPlatform.Infrastructure.Auth;
 using ArtistPlatform.Infrastructure.Data;
@@ -91,6 +92,7 @@ public class IdentityService(
             UserId = user.Id,
             Type = contractorType,
             Name = request.Name.Trim(),
+            CompanyName = request.CompanyName?.Trim() ?? string.Empty,
             Phone = request.Phone ?? string.Empty
         };
         db.Contractors.Add(contractor);
@@ -98,6 +100,38 @@ public class IdentityService(
 
         user.ContractorId = contractor.Id;
         await userManager.UpdateAsync(user);
+
+        // Fecha o ciclo do fluxo de visitante: solicitações "Aguardando conta" feitas com
+        // este telefone são vinculadas ao novo cadastro e confirmadas automaticamente.
+        var phoneDigits = new string((request.Phone ?? "").Where(char.IsDigit).ToArray());
+        if (phoneDigits.Length >= 10)
+        {
+            var pending = await db.BookingRequests
+                .Where(b => b.Status == BookingStatus.AwaitingAccount && b.GuestPhone == phoneDigits)
+                .ToListAsync();
+
+            var eventIds = pending.Where(b => b.EventId is not null).Select(b => b.EventId!.Value).ToList();
+            var events = eventIds.Count > 0
+                ? await db.Events.Where(e => eventIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id)
+                : [];
+
+            foreach (var bookingRequest in pending)
+            {
+                bookingRequest.ContractorId = contractor.Id;
+                bookingRequest.Status = BookingStatus.Confirmed;
+                bookingRequest.UpdatedAt = DateTime.UtcNow;
+
+                if (bookingRequest.EventId is not null && events.TryGetValue(bookingRequest.EventId.Value, out var ev)
+                    && ev.Status == EventStatus.PreReserved)
+                {
+                    ev.Status = EventStatus.Confirmed;
+                    ev.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            if (pending.Count > 0)
+                await db.SaveChangesAsync();
+        }
 
         return await GenerateTokensAsync(user);
     }

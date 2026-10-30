@@ -21,7 +21,7 @@ public record RegisterArtistRequest(
     List<string>? Styles,
     List<string>? EventTypes);
 
-public record RegisterContractorRequest(string Email, string Password, string Name, string ContractorType, string Phone);
+public record RegisterContractorRequest(string Email, string Password, string Name, string ContractorType, string Phone, string? CompanyName);
 
 public record LoginRequest(string Email, string Password);
 
