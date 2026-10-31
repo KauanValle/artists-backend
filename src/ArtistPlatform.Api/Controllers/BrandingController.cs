@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArtistPlatform.Api.Controllers;
 
-public record BrandingDto(string? LogoUrl);
+public record BrandingDto(string? LogoUrl, bool AssinaturaObrigatoria);
 
 /// <summary>
 /// Identidade visual da plataforma: logo personalizada enviada pelo admin (armazenada no
@@ -21,19 +21,29 @@ public record BrandingDto(string? LogoUrl);
 public class BrandingController(IAppDbContext db, ICurrentUserService currentUser, IFileStorage fileStorage) : ControllerBase
 {
     private const string LogoKey = "branding:logo";
+    private const string AssinaturaKey = "assinatura:obrigatoria";
 
-    /// <summary>Logo personalizada da plataforma (null = usa o símbolo padrão).</summary>
+    /// <summary>Logo personalizada + feature flag de assinatura obrigatória (público).</summary>
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<BrandingDto>> Get()
     {
-        var logoUrl = await db.Settings.AsNoTracking()
-            .Where(s => s.Key == LogoKey)
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync();
+        var valores = await db.Settings.AsNoTracking()
+            .Where(s => s.Key == LogoKey || s.Key == AssinaturaKey)
+            .Select(s => new { s.Key, s.Value })
+            .ToListAsync();
+        var logoUrl = valores.FirstOrDefault(v => v.Key == LogoKey)?.Value;
+        var assinaturaObrigatoria =
+            string.Equals(valores.FirstOrDefault(v => v.Key == AssinaturaKey)?.Value, "true", StringComparison.OrdinalIgnoreCase);
 
-        return Ok(new BrandingDto(logoUrl));
+        return Ok(new BrandingDto(logoUrl, assinaturaObrigatoria));
     }
+
+    private async Task<bool> AssinaturaObrigatoriaAsync() =>
+        string.Equals(await db.Settings.AsNoTracking()
+            .Where(s => s.Key == AssinaturaKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(), "true", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Envia uma nova logo (imagem) — somente admin.</summary>
     [HttpPost("logo")]
@@ -66,7 +76,7 @@ public class BrandingController(IAppDbContext db, ICurrentUserService currentUse
         setting.Value = url;
         await db.SaveChangesAsync();
 
-        return Ok(new BrandingDto(url));
+        return Ok(new BrandingDto(url, await AssinaturaObrigatoriaAsync()));
     }
 
     /// <summary>Remove a logo personalizada (volta ao símbolo padrão).</summary>

@@ -23,6 +23,17 @@ public class SubscriptionGateMiddleware(RequestDelegate next)
     {
         if (IsBlockedFreeArtist(context, out var userId))
         {
+            // Feature flag no banco (AppSettings): quando "assinatura:obrigatoria" não é
+            var assinaturaObrigatoria = await db.Settings.AsNoTracking()
+                .Where(s => s.Key == "assinatura:obrigatoria")
+                .Select(s => s.Value)
+                .FirstOrDefaultAsync();
+            if (!string.Equals(assinaturaObrigatoria, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                await next(context);
+                return;
+            }
+
             var tier = await db.Users.AsNoTracking()
                 .Where(u => u.Id == userId!.Value)
                 .Select(u => u.SubscriptionTier)

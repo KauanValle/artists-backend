@@ -9,6 +9,12 @@ namespace ArtistPlatform.Api.Controllers;
 [Route("api/auth")]
 public class AuthController(IIdentityService identityService) : ControllerBase
 {
+    /// <summary>Cadastro unificado (nome, e-mail, senha); perfil é completado depois.</summary>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+        => Ok(await identityService.RegisterAsync(request));
+
     /// <summary>Cadastro de artista (cria usuário + perfil básico).</summary>
     [HttpPost("register/artist")]
     [AllowAnonymous]

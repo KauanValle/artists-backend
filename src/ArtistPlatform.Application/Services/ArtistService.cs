@@ -70,6 +70,8 @@ public class ArtistService(IAppDbContext db) : IArtistService
         if (!string.IsNullOrWhiteSpace(request.ProfilePhotoUrl))
             artist.ProfilePhotoUrl = request.ProfilePhotoUrl;
         artist.TravelTimeMinutes = Math.Clamp(request.TravelTimeMinutes, 0, 480);
+        artist.Cpf = request.Cpf?.Trim();
+        artist.Cep = request.Cep?.Trim();
         artist.UpdatedAt = DateTime.UtcNow;
 
         var profile = await db.ArtistProfiles.FirstOrDefaultAsync(p => p.ArtistId == artist.Id);

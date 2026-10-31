@@ -61,10 +61,16 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Cep")
+                        .HasColumnType("text");
+
                     b.Property<string>("City")
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Cpf")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -545,6 +551,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Cep")
+                        .HasColumnType("text");
+
                     b.Property<string>("City")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -553,6 +562,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.Property<string>("CompanyName")
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Cpf")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");

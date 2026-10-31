@@ -37,6 +37,8 @@ public class ContractorService(IAppDbContext db, ICurrentUserService currentUser
         contractor.Phone = request.Phone ?? string.Empty;
         contractor.City = request.City ?? string.Empty;
         contractor.State = request.State ?? string.Empty;
+        contractor.Cpf = request.Cpf?.Trim();
+        contractor.Cep = request.Cep?.Trim();
         contractor.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 

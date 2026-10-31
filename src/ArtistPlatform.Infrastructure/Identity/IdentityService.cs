@@ -26,6 +26,113 @@ public class IdentityService(
         return ToDto(user);
     }
 
+    /// <summary>
+    /// Cadastro unificado: só identidade (nome, e-mail, senha). O perfil
+    /// (artista ou contratante) é escolhido e preenchido na etapa seguinte.
+    /// O papel vem como Contractor provisório até a conclusão do perfil.
+    /// </summary>
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+    {
+        var user = await CreateUserAsync(request.Email, request.Password, request.Name, UserRole.Contractor);
+        return await GenerateTokensAsync(user);
+    }
+
+    /// <summary>
+    /// Conclusão do perfil pós-registro: define Artista ou Contratante, cria o
+    /// perfil com os dados informados (incluindo CPF/CEP) e reemite o token com
+    /// o papel definitivo.
+    /// </summary>
+    public async Task<AuthResponse> CompleteProfileAsync(Guid userId, CompleteProfileRequest request)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new NotFoundException("Usuário não encontrado.");
+        if (user.ArtistId is not null || user.ContractorId is not null)
+            throw new BusinessRuleException("Seu perfil já foi concluído.");
+
+        var tipo = (request.Tipo ?? string.Empty).Trim();
+        if (tipo is not ("Artista" or "Contratante"))
+            throw new ValidationException("Tipo inválido. Use Artista ou Contratante.");
+
+        if (tipo == "Artista")
+        {
+            var nomeArtistico = (request.ArtisticName ?? string.Empty).Trim();
+            if (nomeArtistico.Length < 2)
+                throw new ValidationException("Informe o nome artístico.");
+            if (request.CategoryId is null || request.CategoryId == Guid.Empty)
+                throw new ValidationException("Selecione a categoria do artista.");
+            if (!await db.ArtistCategories.AnyAsync(cat => cat.Id == request.CategoryId && cat.IsActive))
+                throw new ValidationException("Categoria inválida.");
+
+            if (!Enum.TryParse<ArtistType>(request.ArtistType, ignoreCase: true, out var artistType))
+                artistType = ArtistType.Solo;
+
+            // Troca definitiva do papel (o token reemitido ao final já traz Artist).
+            await userManager.RemoveFromRoleAsync(user, UserRole.Contractor.ToString());
+            await userManager.AddToRoleAsync(user, UserRole.Artist.ToString());
+            user.Role = UserRole.Artist;
+
+            var artist = new Artist
+            {
+                UserId = user.Id,
+                Type = artistType,
+                Name = user.DisplayName,
+                ArtisticName = nomeArtistico,
+                CategoryId = request.CategoryId.Value,
+                City = request.City?.Trim() ?? string.Empty,
+                State = request.State?.Trim() ?? string.Empty,
+                Phone = request.Phone?.Trim() ?? string.Empty,
+                Cpf = request.Cpf?.Trim(),
+                Cep = request.Cep?.Trim()
+            };
+            db.Artists.Add(artist);
+
+            var slug = ArtistService.Slugify(nomeArtistico);
+            if (await db.ArtistProfiles.AnyAsync(p => p.Slug == slug))
+                slug = $"{slug}-{Guid.NewGuid().ToString("N")[..6]}";
+
+            List<string> Clean(List<string>? values) => (values ?? [])
+                .Select(v => v.Trim())
+                .Where(v => v.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(20)
+                .ToList();
+
+            db.ArtistProfiles.Add(new ArtistProfile
+            {
+                ArtistId = artist.Id,
+                Slug = slug,
+                Styles = Clean(request.Styles),
+                EventTypes = Clean(request.EventTypes)
+            });
+
+            await db.SaveChangesAsync();
+            user.ArtistId = artist.Id;
+            await userManager.UpdateAsync(user);
+            return await GenerateTokensAsync(user);
+        }
+
+        // Contratante
+        var contractor = new Contractor
+        {
+            UserId = user.Id,
+            Type = ContractorType.Person,
+            Name = user.DisplayName,
+            CompanyName = request.CompanyName?.Trim() ?? string.Empty,
+            Phone = request.Phone?.Trim() ?? string.Empty,
+            City = request.City?.Trim() ?? string.Empty,
+            State = request.State?.Trim() ?? string.Empty,
+            Cpf = request.Cpf?.Trim(),
+            Cep = request.Cep?.Trim()
+        };
+        db.Contractors.Add(contractor);
+        await db.SaveChangesAsync();
+        user.ContractorId = contractor.Id;
+        await userManager.UpdateAsync(user);
+
+        await VincularShowsPendentesAsync(contractor.Id, contractor.Phone);
+        return await GenerateTokensAsync(user);
+    }
+
     public async Task<AuthResponse> RegisterArtistAsync(RegisterArtistRequest request)
     {
         if (!Enum.TryParse<ArtistType>(request.ArtistType, ignoreCase: true, out var artistType))
@@ -101,39 +208,45 @@ public class IdentityService(
         user.ContractorId = contractor.Id;
         await userManager.UpdateAsync(user);
 
-        // Fecha o ciclo do fluxo de visitante: solicitações "Aguardando conta" feitas com
-        // este telefone são vinculadas ao novo cadastro e confirmadas automaticamente.
-        var phoneDigits = new string((request.Phone ?? "").Where(char.IsDigit).ToArray());
-        if (phoneDigits.Length >= 10)
+        await VincularShowsPendentesAsync(contractor.Id, contractor.Phone);
+        return await GenerateTokensAsync(user);
+    }
+
+    /// <summary>
+    /// Fecha o ciclo do fluxo de visitante: solicitações "Aguardando conta" feitas com
+    /// este telefone são vinculadas ao novo cadastro e confirmadas automaticamente.
+    /// </summary>
+    private async Task VincularShowsPendentesAsync(Guid contractorId, string? phone)
+    {
+        var phoneDigits = new string((phone ?? "").Where(char.IsDigit).ToArray());
+        if (phoneDigits.Length < 10)
+            return;
+
+        var pending = await db.BookingRequests
+            .Where(b => b.Status == BookingStatus.AwaitingAccount && b.GuestPhone == phoneDigits)
+            .ToListAsync();
+
+        var eventIds = pending.Where(b => b.EventId is not null).Select(b => b.EventId!.Value).ToList();
+        var events = eventIds.Count > 0
+            ? await db.Events.Where(e => eventIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id)
+            : [];
+
+        foreach (var bookingRequest in pending)
         {
-            var pending = await db.BookingRequests
-                .Where(b => b.Status == BookingStatus.AwaitingAccount && b.GuestPhone == phoneDigits)
-                .ToListAsync();
+            bookingRequest.ContractorId = contractorId;
+            bookingRequest.Status = BookingStatus.Confirmed;
+            bookingRequest.UpdatedAt = DateTime.UtcNow;
 
-            var eventIds = pending.Where(b => b.EventId is not null).Select(b => b.EventId!.Value).ToList();
-            var events = eventIds.Count > 0
-                ? await db.Events.Where(e => eventIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id)
-                : [];
-
-            foreach (var bookingRequest in pending)
+            if (bookingRequest.EventId is not null && events.TryGetValue(bookingRequest.EventId.Value, out var ev)
+                && ev.Status == EventStatus.PreReserved)
             {
-                bookingRequest.ContractorId = contractor.Id;
-                bookingRequest.Status = BookingStatus.Confirmed;
-                bookingRequest.UpdatedAt = DateTime.UtcNow;
-
-                if (bookingRequest.EventId is not null && events.TryGetValue(bookingRequest.EventId.Value, out var ev)
-                    && ev.Status == EventStatus.PreReserved)
-                {
-                    ev.Status = EventStatus.Confirmed;
-                    ev.UpdatedAt = DateTime.UtcNow;
-                }
+                ev.Status = EventStatus.Confirmed;
+                ev.UpdatedAt = DateTime.UtcNow;
             }
-
-            if (pending.Count > 0)
-                await db.SaveChangesAsync();
         }
 
-        return await GenerateTokensAsync(user);
+        if (pending.Count > 0)
+            await db.SaveChangesAsync();
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -238,8 +351,18 @@ public class IdentityService(
         return new AuthResponse(accessToken, refreshToken, accessExpires, ToDto(user));
     }
 
-    private static UserDto ToDto(AppUser user) =>
-        new(user.Id, user.Email ?? string.Empty, user.DisplayName, user.Role, user.ArtistId, user.ContractorId, user.SubscriptionTier);
+    private static UserDto ToDto(AppUser user)
+    {
+        var perfilCompleto = user.Role switch
+        {
+            UserRole.Admin => true,
+            UserRole.Artist => user.ArtistId is not null,
+            UserRole.Contractor => user.ContractorId is not null,
+            _ => false
+        };
+        return new UserDto(user.Id, user.Email ?? string.Empty, user.DisplayName, user.Role, user.ArtistId,
+            user.ContractorId, user.SubscriptionTier, perfilCompleto);
+    }
 
     /// <summary>Promoção da conta para Assinante após PAYMENT_CONFIRMED no webhook.</summary>
     public async Task<bool> ActivateAsync(Guid userId)

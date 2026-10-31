@@ -4,9 +4,27 @@ namespace ArtistPlatform.Application.DTOs;
 
 // ─────────────────────────── Auth ───────────────────────────
 
-public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, Guid? ArtistId, Guid? ContractorId, SubscriptionTier SubscriptionTier);
+public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, Guid? ArtistId, Guid? ContractorId, SubscriptionTier SubscriptionTier, bool PerfilCompleto);
 
 public record AuthResponse(string AccessToken, string RefreshToken, DateTime ExpiresAtUtc, UserDto User);
+
+/// <summary>Cadastro unificado: só identidade; perfil (artista/contratante) é completado depois.</summary>
+public record RegisterRequest(string Email, string Password, string Name);
+
+/// <summary>Conclusão do perfil pós-registro: escolhe Artista ou Contratante e preenche os dados.</summary>
+public record CompleteProfileRequest(
+    string Tipo,
+    string? ArtisticName,
+    string? ArtistType,
+    Guid? CategoryId,
+    string? City,
+    string? State,
+    string? Phone,
+    string? Cpf,
+    string? Cep,
+    List<string>? Styles,
+    List<string>? EventTypes,
+    string? CompanyName);
 
 public record RegisterArtistRequest(
     string Email,
@@ -50,7 +68,9 @@ public record SaveArtistRequest(
     List<string>? EventTypes,
     List<string> GalleryUrls,
     List<string> VideoUrls,
-    int TravelTimeMinutes = 0);
+    int TravelTimeMinutes = 0,
+    string? Cpf = null,
+    string? Cep = null);
 
 public record ArtistDto(
     Guid Id,

@@ -198,7 +198,7 @@ public record ContractorDto(
     string City,
     string State);
 
-public record SaveContractorRequestDto(ContractorType Type, string Name, string? CompanyName, string Phone, string City, string State);
+public record SaveContractorRequestDto(ContractorType Type, string Name, string? CompanyName, string Phone, string City, string State, string? Cpf = null, string? Cep = null);
 
 public record UploadResultDto(string Url);
 

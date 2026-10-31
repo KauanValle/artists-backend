@@ -14,6 +14,8 @@ public class Artist : BaseEntity
     public string City { get; set; } = default!;
     public string State { get; set; } = default!;
     public string Phone { get; set; } = default!;
+    public string? Cpf { get; set; }
+    public string? Cep { get; set; }
     public string ProfilePhotoUrl { get; set; } = string.Empty;
 
     /// <summary>
