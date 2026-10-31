@@ -19,6 +19,9 @@ public interface IBookingService
     Task<BookingDto> AcceptAsync(Guid id);
     Task<BookingDto> RejectAsync(Guid id);
     Task<BookingDto> CancelAsync(Guid id);
+    Task<CompleteShowDto> CompleteAsync(Guid id);
+    Task<CompletionSummaryDto> GetCompletionByTokenAsync(string token);
+    Task<CompletionSummaryDto> ConfirmCompletionByTokenAsync(string token);
 }
 
 public class BookingService(
@@ -194,6 +197,19 @@ public class BookingService(
 
         var query = db.BookingRequests.AsNoTracking();
 
+        if (currentUser.Role == UserRole.Admin)
+        {
+            query = query.Where(b => b.Status == status.Value);
+            var totalAllBookings = await query.CountAsync();
+            var allBookings = await query
+                .OrderByDescending(b => b.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            
+            return new PagedResult<BookingDto>(await MapAllAsync(allBookings), page, pageSize, totalAllBookings);
+        }
+
         if (currentUser.Role == UserRole.Artist)
             query = query.Where(b => b.ArtistId == currentUser.ArtistId);
         else if (currentUser.Role == UserRole.Contractor)
@@ -309,6 +325,142 @@ public class BookingService(
         }
 
         return (await MapAllAsync([booking])).First();
+    }
+
+    /// <summary>
+    /// Conclusão do show em dupla confirmação: artista e contratante precisam confirmar.
+    /// Enquanto falta uma parte, o evento guarda o estado e o token que gera o link
+    /// público de confirmação do contratante.
+    /// </summary>
+    public async Task<CompleteShowDto> CompleteAsync(Guid id)
+    {
+        var booking = await EnsureAccessAsync(id);
+
+        if (booking.Status == BookingStatus.Completed)
+            return await BuildCompleteDtoAsync(booking);
+        if (booking.Status != BookingStatus.Confirmed || booking.EventId is null)
+            throw new BusinessRuleException("Apenas shows confirmados podem ser concluídos.");
+
+        var ev = await db.Events.FirstAsync(e => e.Id == booking.EventId);
+        var agora = DateTime.UtcNow;
+
+        if (currentUser.Role == UserRole.Contractor)
+            ev.ContractorCompletedAt ??= agora;
+        else
+            ev.ArtistCompletedAt ??= agora;
+
+        await FinalizarConclusaoAsync(booking, ev);
+
+        // Avisa a parte que ainda falta confirmar.
+        if (booking.Status != BookingStatus.Completed)
+        {
+            ev.CompletionToken ??= Guid.NewGuid().ToString("N");
+            if (ev.ContractorCompletedAt is null)
+            {
+                var artistName = await db.Artists.AsNoTracking()
+                    .Where(a => a.Id == booking.ArtistId).Select(a => a.ArtisticName).FirstAsync();
+                await NotificarContratanteAsync(booking, "Confirme a conclusão do show",
+                    $"{artistName} indicou que o show de {booking.EventDate:dd/MM/yyyy} aconteceu — confirme a conclusão.", $"/contractor/solicitacoes/{booking.Id}");
+            }
+            else
+                await NotificarArtistaAsync(booking, "O contratante confirmou a conclusão",
+                    $"Confirme a conclusão do show de {booking.EventDate:dd/MM/yyyy} para encerrar a contratação.", $"/shows/{booking.Id}");
+        }
+
+        await db.SaveChangesAsync();
+        return await BuildCompleteDtoAsync(booking);
+    }
+
+    /// <summary>Resumo público do show pelo token do link de confirmação.</summary>
+    public async Task<CompletionSummaryDto> GetCompletionByTokenAsync(string token)
+    {
+        var (ev, booking, artistName) = await CarregarPorTokenAsync(token);
+        return new CompletionSummaryDto(token, artistName, booking.EventType, booking.EventDate,
+            booking.StartTime, booking.EndTime, booking.Location,
+            ev.ArtistCompletedAt is not null, ev.ContractorCompletedAt is not null, booking.Status);
+    }
+
+    /// <summary>Confirmação do contratante pelo link público (sem cadastro).</summary>
+    public async Task<CompletionSummaryDto> ConfirmCompletionByTokenAsync(string token)
+    {
+        var (ev, booking, artistName) = await CarregarPorTokenAsync(token);
+
+        if (booking.Status == BookingStatus.Completed)
+            return await ResumoAsync(ev, booking, artistName);
+
+        ev.ContractorCompletedAt ??= DateTime.UtcNow;
+        await FinalizarConclusaoAsync(booking, ev);
+
+        if (booking.Status != BookingStatus.Completed)
+            await NotificarArtistaAsync(booking, "O contratante confirmou a conclusão",
+                $"Confirme a conclusão do show de {booking.EventDate:dd/MM/yyyy} para encerrar a contratação.", $"/shows/{booking.Id}");
+
+        await db.SaveChangesAsync();
+        return await ResumoAsync(ev, booking, artistName);
+    }
+
+    private async Task<(Event Ev, BookingRequest Booking, string ArtistName)> CarregarPorTokenAsync(string token)
+    {
+        // Rastreado: a confirmação pública precisa persistir a data no evento.
+        var ev = await db.Events.FirstOrDefaultAsync(e => e.CompletionToken == token)
+            ?? throw new NotFoundException("Link de confirmação inválido ou expirado.");
+        var booking = await db.BookingRequests.FirstAsync(b => b.EventId == ev.Id);
+        var artistName = await db.Artists.AsNoTracking()
+            .Where(a => a.Id == booking.ArtistId).Select(a => a.ArtisticName).FirstAsync();
+        return (ev, booking, artistName);
+    }
+
+    /// <summary>Quando as duas partes confirmaram, encerra: booking e evento ficam concluídos.</summary>
+    private async Task FinalizarConclusaoAsync(BookingRequest booking, Event ev)
+    {
+        if (ev.ArtistCompletedAt is null || ev.ContractorCompletedAt is null)
+            return;
+
+        ev.Status = EventStatus.Completed;
+        ev.UpdatedAt = DateTime.UtcNow;
+        booking.Status = BookingStatus.Completed;
+        booking.UpdatedAt = DateTime.UtcNow;
+
+        var mensagem = $"O show de {booking.EventDate:dd/MM/yyyy} foi concluído pelas duas partes. Bom trabalho!";
+        await NotificarArtistaAsync(booking, "Show concluído", mensagem, $"/shows/{booking.Id}");
+        await NotificarContratanteAsync(booking, "Show concluído", mensagem, $"/contractor/solicitacoes/{booking.Id}");
+    }
+
+    private async Task<CompleteShowDto> BuildCompleteDtoAsync(BookingRequest booking)
+    {
+        string? token = null;
+        bool artistConfirmed = false, contractorConfirmed = false;
+        if (booking.EventId is not null)
+        {
+            var ev = await db.Events.AsNoTracking().FirstAsync(e => e.Id == booking.EventId);
+            artistConfirmed = ev.ArtistCompletedAt is not null;
+            contractorConfirmed = ev.ContractorCompletedAt is not null;
+            if (!artistConfirmed || !contractorConfirmed)
+                token = ev.CompletionToken;
+        }
+        return new CompleteShowDto(booking.Id, booking.Status, artistConfirmed, contractorConfirmed, token);
+    }
+
+    private async Task<CompletionSummaryDto> ResumoAsync(Event ev, BookingRequest booking, string artistName) =>
+        new(ev.CompletionToken ?? string.Empty, artistName, booking.EventType, booking.EventDate,
+            booking.StartTime, booking.EndTime, booking.Location,
+            ev.ArtistCompletedAt is not null, ev.ContractorCompletedAt is not null, booking.Status);
+
+    private async Task NotificarArtistaAsync(BookingRequest booking, string titulo, string mensagem, string link)
+    {
+        var artistUserId = await db.Artists.AsNoTracking()
+            .Where(a => a.Id == booking.ArtistId).Select(a => a.UserId).FirstOrDefaultAsync();
+        if (artistUserId != Guid.Empty)
+            await notifications.NotifyAsync(artistUserId, NotificationType.ShowCompletionRequested, titulo, mensagem, link);
+    }
+
+    private async Task NotificarContratanteAsync(BookingRequest booking, string titulo, string mensagem, string link)
+    {
+        if (booking.ContractorId is null) return;
+        var contractorUserId = await db.Contractors.AsNoTracking()
+            .Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstOrDefaultAsync();
+        if (contractorUserId != Guid.Empty)
+            await notifications.NotifyAsync(contractorUserId, NotificationType.ShowCompletionRequested, titulo, mensagem, link);
     }
 
     /// <summary>

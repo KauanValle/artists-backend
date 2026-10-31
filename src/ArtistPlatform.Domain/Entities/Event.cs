@@ -17,6 +17,12 @@ public class Event : BaseEntity
     public string Description { get; set; } = string.Empty;
     public EventStatus Status { get; set; } = EventStatus.Scheduled;
 
+    // Conclusão em dupla confirmação: artista e contratante precisam confirmar
+    // que o show aconteceu. O token gera o link público de confirmação.
+    public DateTime? ArtistCompletedAt { get; set; }
+    public DateTime? ContractorCompletedAt { get; set; }
+    public string? CompletionToken { get; set; }
+
     public Interval ToInterval() => new(StartDateTime, EndDateTime);
 
     /// <summary>Eventos não cancelados ocupam a agenda (RN008/RN009).</summary>

@@ -706,11 +706,20 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ArtistCompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("ArtistId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("BookingRequestId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("CompletionToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ContractorCompletedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("ContractorId")
                         .HasColumnType("uuid");

@@ -115,3 +115,26 @@ public record ConversationDto(
 public record MessageDto(Guid Id, Guid SenderUserId, string SenderName, string Content, DateTime SentAt, bool IsRead);
 
 public record SendMessageRequestDto(string Content);
+
+// ─────────────────────────── Conclusão do show (dupla confirmação) ───────────────────────────
+
+/// <summary>Estado da conclusão; ContractorToken vem preenchido enquanto falta o contratante (link público).</summary>
+public record CompleteShowDto(
+    Guid BookingId,
+    BookingStatus Status,
+    bool ArtistConfirmed,
+    bool ContractorConfirmed,
+    string? ContractorToken);
+
+/// <summary>Resumo público do show para a página de confirmação do contratante (por token).</summary>
+public record CompletionSummaryDto(
+    string Token,
+    string ArtistName,
+    EventType EventType,
+    DateOnly EventDate,
+    TimeOnly StartTime,
+    TimeOnly EndTime,
+    string Location,
+    bool ArtistConfirmed,
+    bool ContractorConfirmed,
+    BookingStatus Status);
