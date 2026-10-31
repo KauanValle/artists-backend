@@ -13,7 +13,8 @@ public interface IBookingService
 {
     Task<BookingDto> CreateAsync(CreateBookingRequestDto request);
     Task<BookingDto> CreateGuestAsync(CreateGuestBookingRequestDto request);
-    Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, bool? isGuest, int page, int pageSize);
+    Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, bool? isGuest, int page, int pageSize,
+        string? busca = null, string? ordenarPor = null, string? direcao = null);
     Task<BookingDto> GetAsync(Guid id);
     Task<BookingDto> StartNegotiationAsync(Guid id);
     Task<BookingDto> AcceptAsync(Guid id);
@@ -190,27 +191,25 @@ public class BookingService(
     }
 
     /// <summary>Lista com abas por status (PRD §10), filtrada pelo papel do usuário autenticado.</summary>
-    public async Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, bool? isGuest, int page, int pageSize)
+    /// <summary>
+    /// Lista com filtro por status (abas do PRD §10), busca por nome/local,
+    /// ordenação (data, valor, contratante, criação) e paginação — escopada ao papel.
+    /// </summary>
+    public async Task<PagedResult<BookingDto>> ListAsync(BookingStatus? status, bool? isGuest, int page, int pageSize,
+        string? busca = null, string? ordenarPor = null, string? direcao = null)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 50);
+        var decrescente = !string.Equals(direcao, "asc", StringComparison.OrdinalIgnoreCase);
 
         var query = db.BookingRequests.AsNoTracking();
 
         if (currentUser.Role == UserRole.Admin)
         {
-            query = query.Where(b => b.Status == status.Value);
-            var totalAllBookings = await query.CountAsync();
-            var allBookings = await query
-                .OrderByDescending(b => b.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-            
-            return new PagedResult<BookingDto>(await MapAllAsync(allBookings), page, pageSize, totalAllBookings);
+            if (status.HasValue)
+                query = query.Where(b => b.Status == status.Value);
         }
-
-        if (currentUser.Role == UserRole.Artist)
+        else if (currentUser.Role == UserRole.Artist)
             query = query.Where(b => b.ArtistId == currentUser.ArtistId);
         else if (currentUser.Role == UserRole.Contractor)
             query = query.Where(b => b.ContractorId == currentUser.ContractorId);
@@ -225,9 +224,45 @@ public class BookingService(
         if (isGuest.HasValue)
             query = query.Where(b => (b.ContractorId == null) == isGuest.Value);
 
+        // Busca por nome (contratante/visitante/artista) ou local — case-insensitive
+        // pelo padrão do projeto (ToLowerInvariant + Contains, traduzido para ILIKE).
+        var termo = (busca ?? string.Empty).Trim().ToLowerInvariant();
+        if (termo.Length > 0)
+        {
+            query = query.Where(b =>
+                b.Location.ToLower().Contains(termo) ||
+                b.GuestName.ToLower().Contains(termo) ||
+                db.Contractors.Any(cn => cn.Id == b.ContractorId && cn.Name.ToLower().Contains(termo)) ||
+                db.Artists.Any(a => a.Id == b.ArtistId && a.ArtisticName.ToLower().Contains(termo)));
+        }
+
         var total = await query.CountAsync();
-        var bookings = await query
-            .OrderByDescending(b => b.CreatedAt)
+
+        // Ordenação: data do show, valor, nome do contratante/visitante ou criação (padrão).
+        var campo = (ordenarPor ?? string.Empty).Trim().ToLowerInvariant();
+        IOrderedQueryable<BookingRequest> ordenada = campo switch
+        {
+            "data" => decrescente
+                ? query.OrderByDescending(b => b.EventDate).ThenByDescending(b => b.StartTime)
+                : query.OrderBy(b => b.EventDate).ThenBy(b => b.StartTime),
+            "valor" => decrescente
+                ? query.OrderByDescending(b => b.Budget ?? 0m)
+                : query.OrderBy(b => b.Budget ?? 0m),
+            "contratante" => decrescente
+                ? query.OrderByDescending(b =>
+                    b.ContractorId == null
+                        ? b.GuestName
+                        : db.Contractors.Where(cn => cn.Id == b.ContractorId).Select(cn => cn.Name).FirstOrDefault())
+                : query.OrderBy(b =>
+                    b.ContractorId == null
+                        ? b.GuestName
+                        : db.Contractors.Where(cn => cn.Id == b.ContractorId).Select(cn => cn.Name).FirstOrDefault()),
+            _ => decrescente
+                ? query.OrderByDescending(b => b.CreatedAt)
+                : query.OrderBy(b => b.CreatedAt),
+        };
+
+        var bookings = await ordenada
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
