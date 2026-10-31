@@ -9,6 +9,7 @@ using ArtistPlatform.Infrastructure.Auth;
 using ArtistPlatform.Infrastructure.Data;
 using ArtistPlatform.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArtistPlatform.Infrastructure.Identity;
@@ -17,8 +18,12 @@ namespace ArtistPlatform.Infrastructure.Identity;
 public class IdentityService(
     UserManager<AppUser> userManager,
     IJwtTokenService jwtTokenService,
-    AppDbContext db) : IIdentityService, ISubscriptionActivator
+    AppDbContext db,
+    IConfiguration configuration) : IIdentityService, ISubscriptionActivator
 {
+    // Cliente estático para validar o ID token junto ao Google (uma chamada por login).
+    private static readonly HttpClient http = new();
+
     public async Task<UserDto> GetCurrentUserAsync(Guid userId)
     {
         var user = await userManager.FindByIdAsync(userId.ToString())
@@ -34,6 +39,48 @@ public class IdentityService(
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
         var user = await CreateUserAsync(request.Email, request.Password, request.Name, UserRole.Contractor);
+        return await GenerateTokensAsync(user);
+    }
+
+    /// <summary>
+    /// Login/cadastro com Google: valida o ID token (assinatura/aud/exp via tokeninfo),
+    /// autentica quem já tem conta com o e-mail ou cria a conta na hora (perfil
+    /// pendente de conclusão, igual ao cadastro unificado).
+    /// </summary>
+    public async Task<AuthResponse> GoogleLoginAsync(string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(idToken))
+            throw new ValidationException("Token do Google ausente.");
+
+        var resposta = await http.GetAsync($"https://oauth2.googleapis.com/tokeninfo?id_token={idToken}");
+        if (!resposta.IsSuccessStatusCode)
+            throw new UnauthorizedException("Token do Google inválido ou expirado.");
+
+        using var documento = System.Text.Json.JsonDocument.Parse(await resposta.Content.ReadAsStringAsync());
+        var raiz = documento.RootElement;
+
+        var audience = configuration["Google:ClientId"];
+        if (!string.Equals(raiz.GetProperty("aud").GetString(), audience, StringComparison.Ordinal))
+            throw new UnauthorizedException("Token do Google não pertence a este aplicativo.");
+
+        var email = raiz.GetProperty("email").GetString();
+        var verificado = raiz.GetProperty("email_verified").GetString();
+        if (string.IsNullOrEmpty(email) || !string.Equals(verificado, "true", StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedException("A conta Google não tem e-mail verificado.");
+
+        var existente = await userManager.FindByEmailAsync(email);
+        if (existente is not null)
+            return await GenerateTokensAsync(existente);
+
+        var nome = raiz.TryGetProperty("name", out var nomeEl) && !string.IsNullOrWhiteSpace(nomeEl.GetString())
+            ? nomeEl.GetString()!
+            : email.Split('@')[0];
+
+        // Senha aleatória (login sempre pelo Google); e-mail confirmado pelo Google.
+        var user = await CreateUserAsync(email, Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24)) + "aA1", nome, UserRole.Contractor);
+        user.EmailConfirmed = true;
+        await userManager.UpdateAsync(user);
+
         return await GenerateTokensAsync(user);
     }
 

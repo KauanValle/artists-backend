@@ -8,6 +8,8 @@ public interface IIdentityService
     Task<UserDto> GetCurrentUserAsync(Guid userId);
     /// <summary>Cadastro unificado (identidade apenas); perfil completado depois.</summary>
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
+    /// <summary>Login/cadastro via Google (valida o ID token do botão).</summary>
+    Task<AuthResponse> GoogleLoginAsync(string idToken);
     /// <summary>Conclusão do perfil pós-registro (artista ou contratante) — reemite o token.</summary>
     Task<AuthResponse> CompleteProfileAsync(Guid userId, CompleteProfileRequest request);
     Task<AuthResponse> RegisterArtistAsync(RegisterArtistRequest request);

@@ -27,6 +27,12 @@ public class AuthController(IIdentityService identityService) : ControllerBase
     public async Task<ActionResult<AuthResponse>> RegisterContractor(RegisterContractorRequest request)
         => Ok(await identityService.RegisterContractorAsync(request));
 
+    /// <summary>Login/cadastro com Google — valida o ID token do botão.</summary>
+    [HttpPost("google")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AuthResponse>> Google(GoogleLoginRequest request)
+        => Ok(await identityService.GoogleLoginAsync(request.IdToken));
+
     /// <summary>Login por e-mail e senha; retorna access + refresh token.</summary>
     [HttpPost("login")]
     [AllowAnonymous]

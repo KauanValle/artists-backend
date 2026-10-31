@@ -11,6 +11,8 @@ public record AuthResponse(string AccessToken, string RefreshToken, DateTime Exp
 /// <summary>Cadastro unificado: só identidade; perfil (artista/contratante) é completado depois.</summary>
 public record RegisterRequest(string Email, string Password, string Name);
 
+public record GoogleLoginRequest(string IdToken);
+
 /// <summary>Conclusão do perfil pós-registro: escolhe Artista ou Contratante e preenche os dados.</summary>
 public record CompleteProfileRequest(
     string Tipo,
