@@ -18,21 +18,22 @@ public class CompletionController(IBookingService bookingService) : ControllerBa
 }
 
 /// <summary>
-/// Endpoints públicos de confirmação de conclusão via token (link gerado pelo evento).
-/// Usado quando o contratante confirma fora da plataforma, pelo link enviado pelo artista.
+/// Confirmação de conclusão via token (link gerado pelo evento). O link leva o
+/// contratante direto ao show, mas exige login: apenas o contratante da
+/// contratação pode visualizar e confirmar.
 /// </summary>
 [ApiController]
 [Route("api/public/completion")]
 public class PublicCompletionController(IBookingService bookingService) : ControllerBase
 {
     [HttpGet("{token}")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Contractor,Admin")]
     public async Task<ActionResult<CompletionSummaryDto>> GetByToken(string token)
         => Ok(await bookingService.GetCompletionByTokenAsync(token));
 
-    /// <summary>Confirma a conclusão pelo link (contratante sem login).</summary>
+    /// <summary>Confirma a conclusão pelo link (contratante logado).</summary>
     [HttpPost("{token}/confirm")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Contractor,Admin")]
     public async Task<ActionResult<CompletionSummaryDto>> ConfirmByToken(string token)
         => Ok(await bookingService.ConfirmCompletionByTokenAsync(token));
 }

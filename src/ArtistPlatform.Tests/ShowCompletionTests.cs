@@ -90,8 +90,9 @@ public class ShowCompletionTests
         var artistUser = new FakeCurrentUser { Role = UserRole.Artist, UserId = artist.UserId, ArtistId = artist.Id };
         var primeiro = await Service(db, artistUser).CompleteAsync(booking.Id);
 
-        // Confirmação pública pelo token — sem login.
-        var resumo = await Service(db, artistUser).ConfirmCompletionByTokenAsync(primeiro.ContractorToken!);
+        // Confirmação pelo link — exige login do contratante do show.
+        var db2User = new FakeCurrentUser { Role = UserRole.Contractor, UserId = Guid.NewGuid(), ContractorId = db.Contractors.First().Id };
+        var resumo = await Service(db, db2User).ConfirmCompletionByTokenAsync(primeiro.ContractorToken!);
 
         Assert.Equal(BookingStatus.Completed, resumo.Status);
         Assert.True(resumo.ArtistConfirmed);
@@ -122,13 +123,14 @@ public class ShowCompletionTests
     }
 
     [Fact]
-    public async Task GetPorToken_RetornaResumoPublico()
+    public async Task GetPorToken_RetornaResumoParaOContratanteDoShow()
     {
         var (db, artist, _, booking) = Seed();
         var user = new FakeCurrentUser { Role = UserRole.Artist, UserId = artist.UserId, ArtistId = artist.Id };
         var primeiro = await Service(db, user).CompleteAsync(booking.Id);
 
-        var resumo = await Service(db, user).GetCompletionByTokenAsync(primeiro.ContractorToken!);
+        var contratanteUser = new FakeCurrentUser { Role = UserRole.Contractor, UserId = Guid.NewGuid(), ContractorId = db.Contractors.First().Id };
+        var resumo = await Service(db, contratanteUser).GetCompletionByTokenAsync(primeiro.ContractorToken!);
 
         Assert.Equal("DJ Peruca", resumo.ArtistName);
         Assert.Equal("Bar do Carlos", resumo.Location);
@@ -141,10 +143,36 @@ public class ShowCompletionTests
     public async Task TokenInvalido_Rejeita()
     {
         var (db, artist, _, _) = Seed();
-        var user = new FakeCurrentUser { Role = UserRole.Artist, UserId = artist.UserId, ArtistId = artist.Id };
+        var contratanteUser = new FakeCurrentUser { Role = UserRole.Contractor, UserId = Guid.NewGuid(), ContractorId = db.Contractors.First().Id };
 
         await Assert.ThrowsAsync<NotFoundException>(
-            () => Service(db, user).GetCompletionByTokenAsync("nao-existe"));
+            () => Service(db, contratanteUser).GetCompletionByTokenAsync("nao-existe"));
+    }
+
+    [Fact]
+    public async Task Token_DeOutroContratante_Rejeita()
+    {
+        var (db, artist, _, booking) = Seed();
+        var artistUser = new FakeCurrentUser { Role = UserRole.Artist, UserId = artist.UserId, ArtistId = artist.Id };
+        var primeiro = await Service(db, artistUser).CompleteAsync(booking.Id);
+
+        var outroContratante = new FakeCurrentUser { Role = UserRole.Contractor, UserId = Guid.NewGuid(), ContractorId = Guid.NewGuid() };
+
+        await Assert.ThrowsAsync<ForbiddenException>(
+            () => Service(db, outroContratante).ConfirmCompletionByTokenAsync(primeiro.ContractorToken!));
+    }
+
+    [Fact]
+    public async Task Token_SemLogin_Rejeita()
+    {
+        var (db, artist, _, booking) = Seed();
+        var artistUser = new FakeCurrentUser { Role = UserRole.Artist, UserId = artist.UserId, ArtistId = artist.Id };
+        var primeiro = await Service(db, artistUser).CompleteAsync(booking.Id);
+
+        var semLogin = new FakeCurrentUser { Role = null };
+
+        await Assert.ThrowsAsync<ForbiddenException>(
+            () => Service(db, semLogin).GetCompletionByTokenAsync(primeiro.ContractorToken!));
     }
 
     [Fact]

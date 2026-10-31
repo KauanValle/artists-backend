@@ -371,19 +371,21 @@ public class BookingService(
         return await BuildCompleteDtoAsync(booking);
     }
 
-    /// <summary>Resumo público do show pelo token do link de confirmação.</summary>
+    /// <summary>Resumo do show pelo token do link de confirmação (contratante logado).</summary>
     public async Task<CompletionSummaryDto> GetCompletionByTokenAsync(string token)
     {
         var (ev, booking, artistName) = await CarregarPorTokenAsync(token);
+        EnsureContratanteDoBooking(booking);
         return new CompletionSummaryDto(token, artistName, booking.EventType, booking.EventDate,
             booking.StartTime, booking.EndTime, booking.Location,
             ev.ArtistCompletedAt is not null, ev.ContractorCompletedAt is not null, booking.Status);
     }
 
-    /// <summary>Confirmação do contratante pelo link público (sem cadastro).</summary>
+    /// <summary>Confirmação do contratante pelo link (exige login do contratante do show).</summary>
     public async Task<CompletionSummaryDto> ConfirmCompletionByTokenAsync(string token)
     {
         var (ev, booking, artistName) = await CarregarPorTokenAsync(token);
+        EnsureContratanteDoBooking(booking);
 
         if (booking.Status == BookingStatus.Completed)
             return await ResumoAsync(ev, booking, artistName);
@@ -397,6 +399,14 @@ public class BookingService(
 
         await db.SaveChangesAsync();
         return await ResumoAsync(ev, booking, artistName);
+    }
+
+    /// <summary>O link de conclusão só vale para o contratante da própria contratação.</summary>
+    private void EnsureContratanteDoBooking(BookingRequest booking)
+    {
+        if (currentUser.Role == UserRole.Admin) return;
+        if (currentUser.Role != UserRole.Contractor || booking.ContractorId != currentUser.ContractorId)
+            throw new ForbiddenException("Apenas o contratante deste show pode confirmar a conclusão.");
     }
 
     private async Task<(Event Ev, BookingRequest Booking, string ArtistName)> CarregarPorTokenAsync(string token)
