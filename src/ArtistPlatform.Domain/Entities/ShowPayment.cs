@@ -22,4 +22,11 @@ public class ShowPayment : BaseEntity
     public string CheckoutUrl { get; set; } = string.Empty;
     public ShowPaymentStatus Status { get; set; } = ShowPaymentStatus.Pending;
     public DateTime? ConfirmedAt { get; set; }
+
+    // Taxa administrativa da plataforma — snapshot no momento do checkout.
+    public decimal TaxaPercentual { get; set; }
+    public decimal TaxaValor { get; set; }
+
+    /// <summary>Total cobrado do contratante (valor do show + taxa).</summary>
+    public decimal ValorTotal { get; set; }
 }

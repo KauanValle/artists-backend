@@ -17,14 +17,14 @@ public class ShowPaymentTests
 {
     private class FakeInfinityPay : IInfinityPayClient
     {
-        public InfinityPayLinkRequest? UltimoPedido { get; private set; }
+        public List<InfinityPayItem> UltimosItens { get; private set; } = [];
 
-        public Task<InfinityPayLinkResult> CreateLinkAsync(InfinityPayLinkRequest request)
+        public Task<InfinityPayLinkResult> CreateLinkAsync(Guid paymentRef, List<InfinityPayItem> items)
         {
-            UltimoPedido = request;
+            UltimosItens = items;
             return Task.FromResult(new InfinityPayLinkResult(
-                $"tx-{request.PaymentRef:N}",
-                $"https://checkout.infinitepay.io/kauan-valle-santos/{request.PaymentRef:N}"));
+                $"tx-{paymentRef:N}",
+                $"https://checkout.infinitepay.io/kauan-valle-santos/{paymentRef:N}"));
         }
     }
 
@@ -72,7 +72,7 @@ public class ShowPaymentTests
 
         var user = new FakeCurrentUser
         { Role = UserRole.Contractor, UserId = contractor.UserId, ContractorId = contractor.Id };
-        var service = new ShowPaymentService(db, user, new FakeInfinityPay(), new NotificationService(db, user));
+        var service = new ShowPaymentService(db, user, new FakeInfinityPay(), new NotificationService(db, user), new TaxaAdministrativaService(db));
         payment = null!;
         return (db, user, service);
     }
@@ -111,7 +111,7 @@ public class ShowPaymentTests
         var dbIntruso = db;
 
         var serviceIntruso = new ShowPaymentService(
-            dbIntruso, intruso, new FakeInfinityPay(), new NotificationService(dbIntruso, intruso));
+            dbIntruso, intruso, new FakeInfinityPay(), new NotificationService(dbIntruso, intruso), new TaxaAdministrativaService(dbIntruso));
 
         await Assert.ThrowsAsync<ForbiddenException>(() => serviceIntruso.StartCheckoutAsync(booking.Id));
     }

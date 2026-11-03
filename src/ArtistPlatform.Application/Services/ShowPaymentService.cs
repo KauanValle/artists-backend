@@ -9,6 +9,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArtistPlatform.Application.Services;
 
+public interface ITaxaAdministrativaService
+{
+    /// <summary>Percentual da taxa administrativa (AppSettings taxa:administrativa; 0 se não configurada).</summary>
+    Task<decimal> GetPercentualAsync();
+
+    /// <summary>Define o percentual da taxa administrativa (0–50%).</summary>
+    Task<decimal> SetPercentualAsync(decimal percentual, Guid adminUserId);
+}
+
 public interface IShowPaymentService
 {
     /// <summary>Gera o link de checkout no InfinityPay para uma contratação aguardando pagamento.</summary>
@@ -16,6 +25,43 @@ public interface IShowPaymentService
 
     /// <summary>Processa o webhook do InfinityPay: confirma o pagamento e o show (idempotente).</summary>
     Task<WebhookResultDto> HandleWebhookAsync(Guid? paymentRef, string body);
+}
+
+/// <summary>Taxa administrativa da plataforma — percentual sobre o cachê, configurável pelo admin.</summary>
+public class TaxaAdministrativaService(IAppDbContext db) : ITaxaAdministrativaService
+{
+    public const string SettingsKey = "taxa:administrativa";
+    public const decimal Padrao = 5m;
+    private const decimal Maximo = 50m;
+
+    public async Task<decimal> GetPercentualAsync()
+    {
+        var valor = await db.Settings.AsNoTracking()
+            .Where(s => s.Key == SettingsKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync();
+        return decimal.TryParse(valor, out var taxa) ? Math.Clamp(taxa, 0m, Maximo) : Padrao;
+    }
+
+    public async Task<decimal> SetPercentualAsync(decimal percentual, Guid adminUserId)
+    {
+        if (percentual < 0 || percentual > Maximo)
+            throw new BusinessRuleException($"A taxa deve estar entre 0% e {Maximo:0}%.");
+
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == SettingsKey);
+        if (setting is null)
+        {
+            setting = new AppSetting { Key = SettingsKey, Value = percentual.ToString("0.##") };
+            db.Settings.Add(setting);
+        }
+        else
+        {
+            setting.Value = percentual.ToString("0.##");
+            setting.UpdatedAt = DateTime.UtcNow;
+        }
+        await db.SaveChangesAsync();
+        return percentual;
+    }
 }
 
 /// <summary>
@@ -28,7 +74,8 @@ public class ShowPaymentService(
     IAppDbContext db,
     ICurrentUserService currentUser,
     IInfinityPayClient infinityPay,
-    INotificationService notifications) : IShowPaymentService
+    INotificationService notifications,
+    ITaxaAdministrativaService taxaAdministrativa) : IShowPaymentService
 {
     private static readonly string[] ConfirmationMarkers =
     [
@@ -78,19 +125,35 @@ public class ShowPaymentService(
             .Select(a => a.ArtisticName)
             .FirstAsync();
 
+        // Taxa administrativa da plataforma (configurável pelo admin) — cobrada A CRIO DO show.
+        var taxaPercentual = await taxaAdministrativa.GetPercentualAsync();
+        var taxaValor = Math.Round(valor * taxaPercentual / 100m, 2, MidpointRounding.AwayFromZero);
+        var valorTotal = valor + taxaValor;
+
         // Persiste antes de chamar o gateway: o webhook_url leva ?ref={paymentId}.
         var payment = new ShowPayment
         {
             BookingRequestId = booking.Id,
             ContractorId = booking.ContractorId!.Value,
             Amount = valor,
+            TaxaPercentual = taxaPercentual,
+            TaxaValor = taxaValor,
+            ValorTotal = valorTotal,
             Status = ShowPaymentStatus.Pending
         };
         db.ShowPayments.Add(payment);
         await db.SaveChangesAsync();
 
-        var link = await infinityPay.CreateLinkAsync(
-            new InfinityPayLinkRequest(valor, $"Show - {artistName}", payment.Id));
+        // Itens do checkout: o show e (quando houver) a taxa administrativa em linha separada —
+        // transparente para o contratante na hora de pagar.
+        var itens = new List<InfinityPayItem>
+        {
+            new(Convert.ToInt32(valor * 100), $"Show - {artistName}")
+        };
+        if (taxaValor > 0)
+            itens.Add(new InfinityPayItem(Convert.ToInt32(taxaValor * 100), $"Taxa administrativa ({taxaPercentual:0.##}%)"));
+
+        var link = await infinityPay.CreateLinkAsync(payment.Id, itens);
 
         payment.TransactionId = link.TransactionId;
         payment.CheckoutUrl = link.CheckoutUrl;

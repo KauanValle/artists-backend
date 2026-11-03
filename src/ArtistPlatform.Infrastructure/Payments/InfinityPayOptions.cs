@@ -1,7 +1,9 @@
-using ArtistPlatform.Application.Common;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using ArtistPlatform.Application.Common;
+using ArtistPlatform.Application.DTOs;
+using ArtistPlatform.Application.Interfaces;
 using Microsoft.Extensions.Options;
 
 namespace ArtistPlatform.Infrastructure.Payments;

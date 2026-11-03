@@ -10,6 +10,7 @@ namespace ArtistPlatform.Infrastructure.Payments;
 
 /// <summary>
 /// POST /links da API do InfinityPay — gera o checkout do cachê do show.
+/// Cada item (show e taxa administrativa) vira uma linha no checkout do gateway.
 /// O webhook_url leva ?ref={paymentId} para correlacionar a confirmação
 /// com o pagamento persistido, independente do formato do payload do gateway.
 /// </summary>
@@ -19,30 +20,29 @@ public class InfinityPayClient(HttpClient http, IOptions<InfinityPayOptions> opt
 
     private InfinityPayOptions Options => optionsSnapshot.Value;
 
-    public async Task<InfinityPayLinkResult> CreateLinkAsync(InfinityPayLinkRequest request)
+    public async Task<InfinityPayLinkResult> CreateLinkAsync(Guid paymentRef, List<InfinityPayItem> items)
     {
         if (string.IsNullOrWhiteSpace(Options.Handle))
             throw new BusinessRuleException("InfinityPay não configurado: defina InfinityPay__Handle no ambiente.");
         if (string.IsNullOrWhiteSpace(Options.RedirectUrl) || string.IsNullOrWhiteSpace(Options.WebhookUrl))
             throw new BusinessRuleException("InfinityPay não configurado: defina InfinityPay__RedirectUrl e InfinityPay__WebhookUrl no ambiente.");
+        if (items is null || items.Count == 0)
+            throw new BusinessRuleException("Nenhum item informado para o checkout.");
 
-        // Preço em centavos (R$ 400,00 = 40000).
-        var priceCents = (int)Math.Round(request.Amount * 100m, MidpointRounding.AwayFromZero);
+        var webhookUrl = $"{Options.WebhookUrl}?ref={paymentRef}";
 
         var payload = new
         {
             handle = Options.Handle,
-            redirect_url = Options.RedirectUrl,
-            webhook_url = $"{Options.WebhookUrl}?ref={request.PaymentRef}",
-            items = new[]
+            items = items.Select(item => new
             {
-                new
-                {
-                    quantity = 1,
-                    price = priceCents,
-                    description = request.Description
-                }
-            }
+                redirect_url = Options.RedirectUrl,
+                webhook_url = webhookUrl,
+                quantity = 1,
+                // Preço em centavos (R$ 400,00 = 40000).
+                price = item.PriceCents,
+                description = item.Description
+            })
         };
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{Options.ApiBaseUrl.TrimEnd('/')}/links")

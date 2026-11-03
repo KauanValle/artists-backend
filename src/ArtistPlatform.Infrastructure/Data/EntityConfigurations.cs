@@ -199,6 +199,9 @@ public class ShowPaymentConfiguration : IEntityTypeConfiguration<ShowPayment>
     {
         builder.ToTable("ShowPayments");
         builder.Property(p => p.Amount).HasPrecision(12, 2);
+        builder.Property(p => p.TaxaPercentual).HasPrecision(5, 2);
+        builder.Property(p => p.TaxaValor).HasPrecision(12, 2);
+        builder.Property(p => p.ValorTotal).HasPrecision(12, 2);
         builder.Property(p => p.TransactionId).HasMaxLength(200);
         builder.Property(p => p.CheckoutUrl).HasMaxLength(500);
         builder.HasIndex(p => p.BookingRequestId);

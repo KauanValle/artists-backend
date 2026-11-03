@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArtistPlatform.Api.Controllers;
 
-public record BrandingDto(string? LogoUrl, bool AssinaturaObrigatoria);
+public record BrandingDto(string? LogoUrl, bool AssinaturaObrigatoria, decimal TaxaAdministrativa);
 
 /// <summary>
 /// Identidade visual da plataforma: logo personalizada enviada pelo admin (armazenada no
@@ -36,7 +36,7 @@ public class BrandingController(IAppDbContext db, ICurrentUserService currentUse
         var assinaturaObrigatoria =
             string.Equals(valores.FirstOrDefault(v => v.Key == AssinaturaKey)?.Value, "true", StringComparison.OrdinalIgnoreCase);
 
-        return Ok(new BrandingDto(logoUrl, assinaturaObrigatoria));
+        return Ok(new BrandingDto(logoUrl, assinaturaObrigatoria, await TaxaAdministrativaAsync()));
     }
 
     private async Task<bool> AssinaturaObrigatoriaAsync() =>
@@ -44,6 +44,15 @@ public class BrandingController(IAppDbContext db, ICurrentUserService currentUse
             .Where(s => s.Key == AssinaturaKey)
             .Select(s => s.Value)
             .FirstOrDefaultAsync(), "true", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<decimal> TaxaAdministrativaAsync()
+    {
+        var valor = await db.Settings.AsNoTracking()
+            .Where(s => s.Key == "taxa:administrativa")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync();
+        return decimal.TryParse(valor, out var taxa) ? taxa : 0m;
+    }
 
     /// <summary>Envia uma nova logo (imagem) — somente admin.</summary>
     [HttpPost("logo")]
@@ -76,7 +85,7 @@ public class BrandingController(IAppDbContext db, ICurrentUserService currentUse
         setting.Value = url;
         await db.SaveChangesAsync();
 
-        return Ok(new BrandingDto(url, await AssinaturaObrigatoriaAsync()));
+        return Ok(new BrandingDto(url, await AssinaturaObrigatoriaAsync(), await TaxaAdministrativaAsync()));
     }
 
     /// <summary>Remove a logo personalizada (volta ao símbolo padrão).</summary>

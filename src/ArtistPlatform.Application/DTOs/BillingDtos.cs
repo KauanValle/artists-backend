@@ -19,3 +19,13 @@ public record CheckoutUrlDto(string CheckoutUrl);
 public record InfinityPayLinkRequest(decimal Amount, string Description, Guid PaymentRef);
 
 public record InfinityPayLinkResult(string TransactionId, string CheckoutUrl);
+
+// ─────────────────────────── Taxa administrativa da plataforma ───────────────────────────
+
+/// <summary>Taxa administrativa cobrada do contratante sobre o cachê do show (configurável pelo admin).</summary>
+public record TaxaAdministrativaDto(decimal Percentual);
+
+public record SaveTaxaAdministrativaRequest(decimal Percentual);
+
+/// <summary>Item do link de pagamento do InfinityPay (show e/ou taxa administrativa).</summary>
+public record InfinityPayItem(int PriceCents, string Description);
