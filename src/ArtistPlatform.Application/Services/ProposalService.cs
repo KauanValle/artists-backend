@@ -189,55 +189,23 @@ public class ProposalService(
         proposal.Status = ProposalStatus.Accepted;
         proposal.RespondedAt = clock.UtcNow;
 
-        // 2) evento criado/confirmado (RN007) — bloqueia a agenda (RN008).
-        // O tempo de deslocamento/montagem do artista expande a reserva antes e depois do show.
-        var buffer = TimeSpan.FromMinutes(artist.TravelTimeMinutes);
-        var ev = new Event
-        {
-            ArtistId = proposal.ArtistId,
-            ContractorId = proposal.ContractorId,
-            BookingRequestId = booking.Id,
-            Title = $"{artist.ArtisticName} — {booking.EventType}",
-            Type = booking.EventType,
-            StartDateTime = interval.Start - buffer,
-            EndDateTime = interval.End + buffer,
-            Location = booking.Location,
-            Description = booking.Message,
-            Status = EventStatus.Confirmed
-        };
-        db.Events.Add(ev);
-
-        // 3) solicitação ACCEPTED → CONFIRMED
+        // 2) Pagamento obrigatório (InfinityPay): o aceite NÃO confirma o show — fica
+        // AGUARDANDO_PAGAMENTO. Evento, agenda e receita nascem na confirmação do webhook.
         booking.AcceptedProposalId = proposal.Id;
-        booking.EventId = ev.Id;
-        booking.Status = BookingStatus.Confirmed;
+        booking.Status = BookingStatus.AwaitingPayment;
         booking.UpdatedAt = clock.UtcNow;
-
-        // 4) receita PENDING (RN010)
-        var income = new FinancialTransaction
-        {
-            ArtistId = proposal.ArtistId,
-            Type = TransactionType.Income,
-            Category = "Show",
-            Amount = proposal.FinalAmount,
-            DueDate = booking.EventDate,
-            Status = TransactionStatus.Pending,
-            EventId = ev.Id,
-            Notes = $"Receita gerada pelo aceite da proposta (contratação {booking.Id})."
-        };
-        db.FinancialTransactions.Add(income);
 
         await db.SaveChangesAsync();
 
-        // 5) notificações para artista e contratante
-        await notifications.NotifyAsync(artist.UserId, NotificationType.ShowConfirmed,
-            "Show confirmado",
-            $"Proposta aceita! Show confirmado para {booking.EventDate:dd/MM/yyyy} às {booking.StartTime} em {booking.Location}.",
+        // 3) notificações: o contratante precisa pagar; o artista fica ciente do aceite
+        await notifications.NotifyAsync(artist.UserId, NotificationType.ProposalAccepted,
+            "Proposta aceita",
+            $"O contratante aceitou sua proposta de {proposal.FinalAmount:C} para {booking.EventDate:dd/MM/yyyy}. O show é confirmado após o pagamento.",
             $"/shows/{booking.Id}");
         if (contractorUserId.HasValue)
-            await notifications.NotifyAsync(contractorUserId.Value, NotificationType.ProposalAccepted,
-                "Proposta aceita",
-                $"Sua proposta de {proposal.FinalAmount:C} foi aceita. O evento está confirmado.",
+            await notifications.NotifyAsync(contractorUserId.Value, NotificationType.ShowPaymentPending,
+                "Realize o pagamento do show",
+                $"Sua proposta de {proposal.FinalAmount:C} foi aceita. Conclua o pagamento para confirmar o show de {booking.EventDate:dd/MM/yyyy}.",
                 $"/solicitacoes/{booking.Id}");
 
         return ToDto(proposal);

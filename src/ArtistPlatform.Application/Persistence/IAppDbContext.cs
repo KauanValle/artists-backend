@@ -37,4 +37,5 @@ public interface IAppDbContext
     DbSet<BookingAddon> BookingAddons { get; }
     DbSet<ArtistSocialLink> ArtistSocialLinks { get; }
     DbSet<ArtistEpk> ArtistEpks { get; }
+    DbSet<ShowPayment> ShowPayments { get; }
 }

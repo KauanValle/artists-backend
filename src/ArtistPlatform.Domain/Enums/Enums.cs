@@ -55,7 +55,10 @@ public enum BookingStatus
     Cancelled = 7,
     Rejected = 8,
     Expired = 9,
-    AwaitingAccount = 12
+    AwaitingAccount = 12,
+
+    /// <summary>Acordado e aceito — aguardando o contratante pagar o cachê (InfinityPay).</summary>
+    AwaitingPayment = 13
 }
 
 public enum ProposalStatus
@@ -105,7 +108,8 @@ public enum NotificationType
     SubscriptionConfirmed = 10,
     BookingCancelled = 11,
     ShowCompletionRequested = 12,
-    ShowCompleted = 13
+    ShowCompleted = 13,
+    ShowPaymentPending = 14
 }
 
 /// <summary>Divisão de cachê percentual ou fixa (PRD §13).</summary>

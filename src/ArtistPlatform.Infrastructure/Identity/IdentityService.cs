@@ -280,16 +280,11 @@ public class IdentityService(
 
         foreach (var bookingRequest in pending)
         {
+            // Pagamento obrigatório: a formalização do contratante NÃO confirma o show —
+            // fica aguardando pagamento; o evento segue pré-reservado até lá.
             bookingRequest.ContractorId = contractorId;
-            bookingRequest.Status = BookingStatus.Confirmed;
+            bookingRequest.Status = BookingStatus.AwaitingPayment;
             bookingRequest.UpdatedAt = DateTime.UtcNow;
-
-            if (bookingRequest.EventId is not null && events.TryGetValue(bookingRequest.EventId.Value, out var ev)
-                && ev.Status == EventStatus.PreReserved)
-            {
-                ev.Status = EventStatus.Confirmed;
-                ev.UpdatedAt = DateTime.UtcNow;
-            }
         }
 
         if (pending.Count > 0)

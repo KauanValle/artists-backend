@@ -55,7 +55,7 @@ public class ProposalAcceptanceTests
         new(db, user, new FakeClock(Now), new NotificationService(db, user));
 
     [Fact]
-    public async Task Accept_CriaEventoConfirmado_BloqueiaAgenda_CriaReceitaPending_ENotifica()
+    public async Task Accept_FicaAguardandoPagamento_SemEventoSemReceita()
     {
         var db = TestDb.Create();
         var (artist, contractor, booking, proposal) = Seed(db);
@@ -64,24 +64,17 @@ public class ProposalAcceptanceTests
 
         await service.AcceptAsync(proposal.Id);
 
-        // RN007: aceite cria/confirma evento
-        var ev = await db.Events.SingleAsync(e => e.BookingRequestId == booking.Id);
-        Assert.Equal(EventStatus.Confirmed, ev.Status);
-        Assert.Equal(new DateTime(2026, 10, 10, 20, 0, 0), ev.StartDateTime);
-        Assert.True(ev.BlocksAgenda); // RN008: evento confirmado bloqueia a agenda
-
-        // solicitação ACCEPTED → CONFIRMED
-        Assert.Equal(BookingStatus.Confirmed, booking.Status);
+        // Pagamento obrigatório: proposta aceita + AGUARDANDO_PAGAMENTO, sem evento/receita.
+        Assert.Equal(ProposalStatus.Accepted, proposal.Status);
+        Assert.Equal(BookingStatus.AwaitingPayment, booking.Status);
         Assert.Equal(proposal.Id, booking.AcceptedProposalId);
+        Assert.Null(booking.EventId);
+        Assert.Equal(0, await db.Events.CountAsync());
+        Assert.Equal(0, await db.FinancialTransactions.CountAsync());
 
-        // RN010: receita PENDING criada com o valor final da proposta (PRD §20: 2000 + 200 + 300)
-        var income = await db.FinancialTransactions.SingleAsync(t => t.EventId == ev.Id);
-        Assert.Equal(TransactionType.Income, income.Type);
-        Assert.Equal(TransactionStatus.Pending, income.Status);
-        Assert.Equal(2500m, income.Amount);
-
-        // artista e contratante notificados
-        Assert.Equal(2, await db.Notifications.CountAsync());
+        // contratante orientado a pagar; artista ciente do aceite
+        Assert.Equal(1, await db.Notifications.CountAsync(n => n.Type == NotificationType.ShowPaymentPending));
+        Assert.Equal(1, await db.Notifications.CountAsync(n => n.Type == NotificationType.ProposalAccepted));
     }
 
     [Fact]

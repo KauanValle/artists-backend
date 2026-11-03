@@ -206,8 +206,8 @@ public class GuestBookingTests
         var ev = await db.Events.SingleAsync(e => e.BookingRequestId == created.Id);
         Assert.Equal(EventStatus.PreReserved, ev.Status);
         Assert.Null(ev.ContractorId);
-        var income = await db.FinancialTransactions.SingleAsync(t => t.EventId == ev.Id);
-        Assert.Equal(1800m, income.Amount);
+        // Fluxo de visitante não gera receita (pagamento obrigatório acontece após a formalização).
+        Assert.Equal(0, await db.FinancialTransactions.CountAsync());
         Assert.Equal(2, await db.Notifications.CountAsync()); // criação + aceite, só para o artista
     }
 }

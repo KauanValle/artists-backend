@@ -322,7 +322,8 @@ public class BookingService(
 
         if (booking.Status == BookingStatus.Completed)
             throw new BusinessRuleException("Shows realizados não podem ser cancelados.");
-        if (booking.Status is not (BookingStatus.Requested or BookingStatus.Negotiating or BookingStatus.Proposed or BookingStatus.Confirmed))
+        if (booking.Status is not (BookingStatus.Requested or BookingStatus.Negotiating or BookingStatus.Proposed
+                or BookingStatus.Confirmed or BookingStatus.AwaitingPayment))
             throw new BusinessRuleException("Esta solicitação não pode mais ser cancelada.");
 
         // Show confirmado: cancela também o evento na agenda para liberar a data.
@@ -630,11 +631,28 @@ public class BookingService(
             : (Guid?)await db.Contractors.AsNoTracking()
                 .Where(c => c.Id == booking.ContractorId).Select(c => c.UserId).FirstAsync();
 
-        // RN007: aceite cria/confirma o evento (RN008: bloqueia a agenda).
-        // O tempo de deslocamento/montagem do artista expande a reserva antes e depois do show.
-        var buffer = TimeSpan.FromMinutes(artist.TravelTimeMinutes);
+        // Pagamento obrigatório (InfinityPay): para contratantes cadastrados, o aceite não
+        // confirma o show — fica AGUARDANDO_PAGAMENTO. Evento, agenda e receita são criados
+        // na confirmação do webhook do pagamento. Visitantes seguem o fluxo de conta.
+        if (!booking.IsGuest)
+        {
+            booking.Status = BookingStatus.AwaitingPayment;
+            booking.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+
+            if (contractorUser.HasValue)
+                await notifications.NotifyAsync(
+                    contractorUser.Value,
+                    NotificationType.ShowPaymentPending,
+                    "Realize o pagamento do show",
+                    $"{artist.ArtisticName} aceitou sua solicitação de {booking.Budget.Value:C}. Conclua o pagamento para confirmar o show de {booking.EventDate:dd/MM/yyyy}.",
+                    $"/solicitacoes/{booking.Id}");
+
+            return (await MapAllAsync([booking])).First();
+        }
+
         // Visitante: evento pré-reservado (soft) — formaliza quando o contratante criar conta.
-        var eventStatus = booking.IsGuest ? EventStatus.PreReserved : EventStatus.Confirmed;
+        var buffer = TimeSpan.FromMinutes(artist.TravelTimeMinutes);
         var ev = new Event
         {
             ArtistId = booking.ArtistId,
@@ -646,39 +664,20 @@ public class BookingService(
             EndDateTime = interval.End + buffer,
             Location = booking.Location,
             Description = booking.Message,
-            Status = eventStatus
+            Status = EventStatus.PreReserved
         };
         db.Events.Add(ev);
 
         booking.EventId = ev.Id;
-        // Visitante: fica "Aguardando conta" até o contratante criar o cadastro e formalizar.
-        booking.Status = booking.IsGuest ? BookingStatus.AwaitingAccount : BookingStatus.Confirmed;
+        booking.Status = BookingStatus.AwaitingAccount;
         booking.UpdatedAt = DateTime.UtcNow;
-
-        // RN010: receita PENDING com o orçamento acordado
-        db.FinancialTransactions.Add(new FinancialTransaction
-        {
-            ArtistId = booking.ArtistId,
-            Type = TransactionType.Income,
-            Category = "Show",
-            Amount = booking.Budget.Value,
-            DueDate = booking.EventDate,
-            Status = TransactionStatus.Pending,
-            EventId = ev.Id,
-            Notes = $"Receita gerada pelo aceite direto da solicitação (contratação {booking.Id})."
-        });
 
         await db.SaveChangesAsync();
 
         await notifications.NotifyAsync(artist.UserId, NotificationType.ShowConfirmed,
-            "Show confirmado",
-            $"Solicitação aceita! Show confirmado para {booking.EventDate:dd/MM/yyyy} às {booking.StartTime} em {booking.Location}.",
+            "Solicitação aceita",
+            $"Solicitação aceita! Show de {booking.EventDate:dd/MM/yyyy} às {booking.StartTime} em {booking.Location} pré-reservado até a formalização do contratante.",
             $"/shows/{booking.Id}");
-        if (contractorUser.HasValue)
-            await notifications.NotifyAsync(contractorUser.Value, NotificationType.ShowConfirmed,
-                "Solicitação aceita",
-                $"{artist.ArtisticName} aceitou sua solicitação de {booking.Budget.Value:C}. O evento está confirmado.",
-                $"/solicitacoes/{booking.Id}");
 
         return (await MapAllAsync([booking])).First();
     }

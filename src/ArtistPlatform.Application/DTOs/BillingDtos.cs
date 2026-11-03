@@ -9,3 +9,13 @@ public record BillingDto(Guid Id, string CheckoutSessionId, string Link, string 
 
 /// <summary>Resultado do processamento do webhook (sempre 200 para o Asaas não reenviar).</summary>
 public record WebhookResultDto(bool Handled, string Message);
+
+// ─────────────────────────── Pagamento do show (InfinityPay) ───────────────────────────
+
+/// <summary>URL do checkout do InfinityPay para a contratação.</summary>
+public record CheckoutUrlDto(string CheckoutUrl);
+
+/// <summary>Dados de criação do link de pagamento do show.</summary>
+public record InfinityPayLinkRequest(decimal Amount, string Description, Guid PaymentRef);
+
+public record InfinityPayLinkResult(string TransactionId, string CheckoutUrl);

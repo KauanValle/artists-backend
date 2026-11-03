@@ -48,27 +48,20 @@ public class BookingDirectAcceptTests
     }
 
     [Fact]
-    public async Task Accept_ComOrcamento_CriaEventoReceitaENotifica()
+    public async Task Accept_ComOrcamento_FicaAguardandoPagamentoSemEvento()
     {
         var (db, _, service, _, contractor, booking) = Seed();
 
         var result = await service.AcceptAsync(booking.Id);
 
-        Assert.Equal(BookingStatus.Confirmed, result.Status);
-        Assert.NotNull(result.EventId);
+        // Pagamento obrigatório: o aceite não confirma nem cria evento/receita.
+        Assert.Equal(BookingStatus.AwaitingPayment, result.Status);
+        Assert.Null(result.EventId);
+        Assert.Equal(0, await db.Events.CountAsync());
+        Assert.Equal(0, await db.FinancialTransactions.CountAsync());
 
-        var ev = await db.Events.SingleAsync(e => e.BookingRequestId == booking.Id);
-        Assert.Equal(EventStatus.Confirmed, ev.Status);
-        Assert.True(ev.BlocksAgenda);
-        Assert.Equal(contractor.Id, ev.ContractorId);
-
-        // RN010: receita PENDING com o orçamento da solicitação
-        var income = await db.FinancialTransactions.SingleAsync(t => t.EventId == ev.Id);
-        Assert.Equal(TransactionType.Income, income.Type);
-        Assert.Equal(TransactionStatus.Pending, income.Status);
-        Assert.Equal(1500m, income.Amount);
-
-        Assert.Equal(2, await db.Notifications.CountAsync());
+        // O contratante é orientado a pagar.
+        Assert.Equal(1, await db.Notifications.CountAsync(n => n.Type == NotificationType.ShowPaymentPending));
     }
 
     [Fact]

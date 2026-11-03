@@ -38,7 +38,10 @@ public class BillingController(IBillingService billingService, ICurrentUserServi
 /// </summary>
 [ApiController]
 [Route("api/webhooks")]
-public class WebhooksController(IBillingService billingService, IOptions<AsaasOptions> asaasOptions) : ControllerBase
+public class WebhooksController(
+    IBillingService billingService,
+    IShowPaymentService showPaymentService,
+    IOptions<AsaasOptions> asaasOptions) : ControllerBase
 {
     [HttpPost("asaas")]
     [AllowAnonymous]
@@ -54,5 +57,22 @@ public class WebhooksController(IBillingService billingService, IOptions<AsaasOp
         }
 
         return Ok(await billingService.HandleWebhookAsync(payload.GetRawText()));
+    }
+
+    /// <summary>
+    /// Webhook do InfinityPay para pagamentos de shows. O link é criado com
+    /// webhook_url = {WebhookUrl}?ref={paymentId} — a confirmação oficial chega aqui
+    /// e o processamento é idempotente (reenvios não duplicam efeitos).
+    /// </summary>
+    [HttpPost("infinitepay")]
+    [AllowAnonymous]
+    public async Task<ActionResult<WebhookResultDto>> InfinitePay([FromBody] JsonElement payload)
+    {
+        Guid? paymentRef = Request.Query.TryGetValue("ref", out var refValues)
+            && Guid.TryParse(refValues.FirstOrDefault(), out var parsed)
+            ? parsed
+            : null;
+
+        return Ok(await showPaymentService.HandleWebhookAsync(paymentRef, payload.GetRawText()));
     }
 }

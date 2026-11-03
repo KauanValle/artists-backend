@@ -11,3 +11,4 @@ src/ArtistPlatform.Api/wwwroot/uploads/
 .idea/
 .vs/
 *.user
+appsettings.json

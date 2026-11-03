@@ -192,6 +192,20 @@ public class ArtistEpkConfiguration : IEntityTypeConfiguration<ArtistEpk>
     }
 }
 
+public class ShowPaymentConfiguration : IEntityTypeConfiguration<ShowPayment>
+{
+    public void Configure(EntityTypeBuilder<ShowPayment> builder)
+    {
+        builder.ToTable("ShowPayments");
+        builder.Property(p => p.Amount).HasPrecision(12, 2);
+        builder.Property(p => p.TransactionId).HasMaxLength(200);
+        builder.Property(p => p.CheckoutUrl).HasMaxLength(500);
+        builder.HasIndex(p => p.BookingRequestId);
+        // O webhook localiza o pagamento por TransactionId (id do link no InfinityPay).
+        builder.HasIndex(p => p.TransactionId);
+    }
+}
+
 public class BookingRequestConfiguration : IEntityTypeConfiguration<BookingRequest>
 {
     public void Configure(EntityTypeBuilder<BookingRequest> builder)

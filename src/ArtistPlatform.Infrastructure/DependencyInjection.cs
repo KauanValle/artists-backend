@@ -2,6 +2,7 @@ using ArtistPlatform.Application.Interfaces;
 using ArtistPlatform.Application.Persistence;
 using ArtistPlatform.Application.Services;
 using ArtistPlatform.Infrastructure.Asaas;
+using ArtistPlatform.Infrastructure.Payments;
 using ArtistPlatform.Infrastructure.Auth;
 using ArtistPlatform.Infrastructure.Data;
 using ArtistPlatform.Infrastructure.Identity;
@@ -99,6 +100,10 @@ public static class DependencyInjection
         // Assinatura (Asaas): opções do ambiente + cliente HTTP de checkout.
         services.Configure<AsaasOptions>(configuration.GetSection(AsaasOptions.SectionName));
         services.AddHttpClient<IAsaasCheckoutClient, AsaasCheckoutClient>();
+
+        // InfinityPay — links de pagamento do cachê dos shows
+        services.Configure<InfinityPayOptions>(configuration.GetSection(InfinityPayOptions.SectionName));
+        services.AddHttpClient<IInfinityPayClient, InfinityPayClient>();
         services.AddScoped<IBillingService, BillingService>();
 
         return services;

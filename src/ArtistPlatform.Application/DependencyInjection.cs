@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<ISocialLinkService, SocialLinkService>();
         services.AddScoped<IEpkService, EpkService>();
+        services.AddScoped<IShowPaymentService, ShowPaymentService>();
         return services;
     }
 }
