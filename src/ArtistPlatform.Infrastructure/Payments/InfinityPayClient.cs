@@ -32,12 +32,12 @@ public class InfinityPayClient(HttpClient http, IOptions<InfinityPayOptions> opt
         var payload = new
         {
             handle = Options.Handle,
+            redirect_url = Options.RedirectUrl,
+            webhook_url = $"{Options.WebhookUrl}?ref={request.PaymentRef}",
             items = new[]
             {
                 new
                 {
-                    redirect_url = Options.RedirectUrl,
-                    webhook_url = $"{Options.WebhookUrl}?ref={request.PaymentRef}",
                     quantity = 1,
                     price = priceCents,
                     description = request.Description
