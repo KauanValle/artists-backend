@@ -24,7 +24,9 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => poli
         "http://localhost:3000",
         "http://frontend:80",
         "http://localhost",
-        "https://artists-frontend-psi.vercel.app")
+        "https://artists-frontend-psi.vercel.app",
+        "https://www.reprissa.com.br",
+        "https://reprissa.com.br")
     .AllowAnyHeader()
     .AllowAnyMethod()));
 
