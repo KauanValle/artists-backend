@@ -34,10 +34,10 @@ public class InfinityPayClient(HttpClient http, IOptions<InfinityPayOptions> opt
         var payload = new
         {
             handle = Options.Handle,
+            redirect_url = Options.RedirectUrl,
+            webhook_url = webhookUrl,
             items = items.Select(item => new
             {
-                redirect_url = Options.RedirectUrl,
-                webhook_url = webhookUrl,
                 quantity = 1,
                 // Preço em centavos (R$ 400,00 = 40000).
                 price = item.PriceCents,
