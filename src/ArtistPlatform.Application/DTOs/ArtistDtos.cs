@@ -72,7 +72,8 @@ public record SaveArtistRequest(
     List<string> VideoUrls,
     int TravelTimeMinutes = 0,
     string? Cpf = null,
-    string? Cep = null);
+    string? Cep = null,
+    bool AceitaNegociarPropostas = true);
 
 public record ArtistDto(
     Guid Id,
@@ -96,7 +97,8 @@ public record ArtistDto(
     double? AverageRating,
     int ReviewCount,
     decimal? StartingPrice,
-    int TravelTimeMinutes);
+    int TravelTimeMinutes,
+    bool AceitaNegociarPropostas);
 
 /// <summary>Card do marketplace (PRD §17): foto, nome, avaliação, categoria, cidade, cachê inicial e disponibilidade.</summary>
 public record ArtistCardDto(
@@ -145,6 +147,7 @@ public record ArtistDetailPublicDto(
     double? AverageRating,
     int ReviewCount,
     decimal? StartingPrice,
+    bool AceitaNegociarPropostas,
     List<FeeDto> Fees,
     List<ReviewDto> Reviews);
 

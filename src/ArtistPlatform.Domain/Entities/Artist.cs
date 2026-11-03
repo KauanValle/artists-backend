@@ -16,6 +16,9 @@ public class Artist : BaseEntity
     public string Phone { get; set; } = default!;
     public string? Cpf { get; set; }
     public string? Cep { get; set; }
+
+    /// <summary>Se false, o contratante não pode alterar o valor pré-fixado pelos cachês.</summary>
+    public bool AceitaNegociarPropostas { get; set; } = true;
     public string ProfilePhotoUrl { get; set; } = string.Empty;
 
     /// <summary>

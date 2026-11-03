@@ -72,6 +72,7 @@ public class ArtistService(IAppDbContext db) : IArtistService
         artist.TravelTimeMinutes = Math.Clamp(request.TravelTimeMinutes, 0, 480);
         artist.Cpf = request.Cpf?.Trim();
         artist.Cep = request.Cep?.Trim();
+        artist.AceitaNegociarPropostas = request.AceitaNegociarPropostas;
         artist.UpdatedAt = DateTime.UtcNow;
 
         var profile = await db.ArtistProfiles.FirstOrDefaultAsync(p => p.ArtistId == artist.Id);
@@ -302,7 +303,8 @@ public class ArtistService(IAppDbContext db) : IArtistService
             profile?.GalleryUrls ?? [], profile?.VideoUrls ?? [],
             profile?.Slug ?? string.Empty, profile?.IsPublished ?? false,
             avg, count, startingPrice,
-            artist.TravelTimeMinutes);
+            artist.TravelTimeMinutes,
+            artist.AceitaNegociarPropostas);
     }
 
     private async Task<ArtistDetailPublicDto> BuildPublicDtoAsync(Artist artist)
@@ -335,6 +337,7 @@ public class ArtistService(IAppDbContext db) : IArtistService
             artist.CategoryId, category.Name, artist.City, artist.State,
             profile.Description, profile.Styles, profile.Specialties, profile.EventTypes, profile.GalleryUrls, profile.VideoUrls,
             avg, count, fees.Count > 0 ? fees.Min(f => f.Price) : null,
+            artist.AceitaNegociarPropostas,
             fees,
             reviews.Select(r => new ReviewDto(
                 r.Id, r.ArtistId, r.ContractorId, contractors.GetValueOrDefault(r.ContractorId, "Contratante"),

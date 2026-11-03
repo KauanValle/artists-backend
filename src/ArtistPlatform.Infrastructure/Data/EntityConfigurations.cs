@@ -29,6 +29,7 @@ public class ArtistConfiguration : IEntityTypeConfiguration<Artist>
         builder.HasIndex(a => a.UserId).IsUnique();
         builder.HasOne(a => a.Category).WithMany().HasForeignKey(a => a.CategoryId);
         builder.Property(a => a.TravelTimeMinutes).HasDefaultValue(0);
+        builder.Property(a => a.AceitaNegociarPropostas).HasDefaultValue(true);
     }
 }
 

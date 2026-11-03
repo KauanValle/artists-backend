@@ -53,6 +53,11 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AceitaNegociarPropostas")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("ArtisticName")
                         .IsRequired()
                         .HasMaxLength(160)
