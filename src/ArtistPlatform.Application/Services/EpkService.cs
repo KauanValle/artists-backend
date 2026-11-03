@@ -26,6 +26,7 @@ public class EpkService(IAppDbContext db, ICurrentUserService currentUser) : IEp
     private const int MaxSongs = 15;
     private const int SongMaxLength = 120;
     private const int UrlMaxLength = 500;
+    private const string CorPadrao = "#0a0a12";
 
     public async Task<EpkDto> GetByArtistAsync(Guid artistId)
     {
@@ -40,7 +41,8 @@ public class EpkService(IAppDbContext db, ICurrentUserService currentUser) : IEp
             epk?.SpotifyUrl,
             epk?.YouTubeUrl,
             epk?.SoundCloudUrl,
-            epk?.SpotifyPlaylistUrl);
+            epk?.SpotifyPlaylistUrl,
+            epk?.CorDestaque);
     }
 
     public async Task<EpkDto> SaveAsync(Guid userId, SaveEpkRequest request)
@@ -74,11 +76,12 @@ public class EpkService(IAppDbContext db, ICurrentUserService currentUser) : IEp
         epk.YouTubeUrl = CleanUrl(request.YouTubeUrl, "YouTube");
         epk.SoundCloudUrl = CleanUrl(request.SoundCloudUrl, "SoundCloud");
         epk.SpotifyPlaylistUrl = CleanUrl(request.SpotifyPlaylistUrl, "playlist do Spotify");
+        epk.CorDestaque = CleanCorDestaque(request.CorDestaque);
         epk.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
         return new EpkDto(artistId, epk.Bio, epk.PhotoUrls, epk.VideoUrls, epk.Songs,
-            epk.SpotifyUrl, epk.YouTubeUrl, epk.SoundCloudUrl, epk.SpotifyPlaylistUrl);
+            epk.SpotifyUrl, epk.YouTubeUrl, epk.SoundCloudUrl, epk.SpotifyPlaylistUrl, epk.CorDestaque);
     }
 
     /// <summary>Remove vazios/duplicatas, corta espaços e valida o formato das URLs de mídia.</summary>
@@ -125,6 +128,17 @@ public class EpkService(IAppDbContext db, ICurrentUserService currentUser) : IEp
         if (clean.Count > MaxSongs)
             throw new ValidationException($"O EPK aceita no máximo {MaxSongs} músicas.");
         return clean;
+    }
+
+    /// <summary>Cor de destaque do EPK: aceita hex #rrggbb; vazio = null (violeta padrão).</summary>
+    private static string? CleanCorDestaque(string? raw)
+    {
+        var cor = raw?.Trim() ?? string.Empty;
+        if (cor.Length == 0)
+            return null;
+        if (!System.Text.RegularExpressions.Regex.IsMatch(cor, "^#[0-9a-fA-F]{6}$"))
+            throw new ValidationException("A cor de destaque deve estar no formato hexadecimal (#rrggbb).");
+        return cor.ToLowerInvariant();
     }
 
     /// <summary>Normaliza uma URL única de plataforma; vazio vira null (não configurada).</summary>

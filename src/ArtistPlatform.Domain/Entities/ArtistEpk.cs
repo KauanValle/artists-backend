@@ -30,4 +30,7 @@ public class ArtistEpk : BaseEntity
 
     /// <summary>Link da playlist oficial do Spotify exibido no banner do EPK.</summary>
     public string? SpotifyPlaylistUrl { get; set; }
+
+    /// <summary>Cor de destaque da landing (botões, detalhes, brilho) em hex #rrggbb. Nula/vazia = violeta padrão.</summary>
+    public string? CorDestaque { get; set; }
 }

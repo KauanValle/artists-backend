@@ -244,7 +244,8 @@ public record EpkDto(
     string? SpotifyUrl,
     string? YouTubeUrl,
     string? SoundCloudUrl,
-    string? SpotifyPlaylistUrl);
+    string? SpotifyPlaylistUrl,
+    string? CorDestaque);
 
 public record SaveEpkRequest(
     string? Bio,
@@ -254,4 +255,5 @@ public record SaveEpkRequest(
     string? SpotifyUrl,
     string? YouTubeUrl,
     string? SoundCloudUrl,
-    string? SpotifyPlaylistUrl);
+    string? SpotifyPlaylistUrl,
+    string? CorDestaque = null);
