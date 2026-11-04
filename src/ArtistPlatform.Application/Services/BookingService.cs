@@ -407,10 +407,12 @@ public class BookingService(
             {
                 var artistName = await db.Artists.AsNoTracking()
                     .Where(a => a.Id == booking.ArtistId).Select(a => a.ArtisticName).FirstAsync();
+                booking.Status = BookingStatus.AwaitingCompletionAccept;
                 await NotificarContratanteAsync(booking, "Confirme a conclusão do show",
                     $"{artistName} indicou que o show de {booking.EventDate:dd/MM/yyyy} aconteceu — confirme a conclusão.", $"/contractor/solicitacoes/{booking.Id}");
             }
             else
+                booking.Status = BookingStatus.AwaitingCompletionAccept;
                 await NotificarArtistaAsync(booking, "O contratante confirmou a conclusão",
                     $"Confirme a conclusão do show de {booking.EventDate:dd/MM/yyyy} para encerrar a contratação.", $"/shows/{booking.Id}");
         }

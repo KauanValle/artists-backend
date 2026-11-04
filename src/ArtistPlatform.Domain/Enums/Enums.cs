@@ -58,7 +58,8 @@ public enum BookingStatus
     AwaitingAccount = 12,
 
     /// <summary>Acordado e aceito — aguardando o contratante pagar o cachê (InfinityPay).</summary>
-    AwaitingPayment = 13
+    AwaitingPayment = 13,
+    AwaitingCompletionAccept = 14,
 }
 
 public enum ProposalStatus
