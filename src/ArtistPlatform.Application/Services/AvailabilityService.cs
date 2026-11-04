@@ -35,8 +35,8 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
     {
         var artistId = currentUser.EnsureArtist();
 
-        if (!request.IsAllDay && request.EndTime <= request.StartTime)
-            throw new ValidationException("O horário final deve ser maior que o inicial.");
+        // if (!request.IsAllDay && request.EndTime <= request.StartTime)
+        //     throw new ValidationException("O horário final deve ser maior que o inicial.");
 
         // O dia específico sobrescreve o padrão (ex.: "fechar" um dia de trabalho).
         await OverrideOverlappingIntervalsAsync(artistId, request, excludeAvailabilityId: null);
@@ -70,8 +70,8 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         var dates = (request.Dates ?? []).Distinct().OrderBy(d => d).ToList();
         if (dates.Count == 0)
             throw new ValidationException("Selecione ao menos uma data.");
-        if (!request.IsAllDay && request.EndTime <= request.StartTime)
-            throw new ValidationException("O horário final deve ser maior que o inicial.");
+        // if (!request.IsAllDay && request.EndTime <= request.StartTime)
+        //     throw new ValidationException("O horário final deve ser maior que o inicial.");
 
         // Datas que já possuem disponibilidade registrada — não duplica.
         var existingDates = (await db.ArtistAvailabilities.AsNoTracking()
@@ -181,8 +181,8 @@ public class AvailabilityService(IAppDbContext db, ICurrentUserService currentUs
         var row = await db.ArtistAvailabilities.FirstOrDefaultAsync(a => a.Id == id && a.ArtistId == artistId)
             ?? throw new NotFoundException("Disponibilidade não encontrada.");
 
-        if (!request.IsAllDay && request.EndTime <= request.StartTime)
-            throw new ValidationException("O horário final deve ser maior que o inicial.");
+        // if (!request.IsAllDay && request.EndTime <= request.StartTime)
+        //     throw new ValidationException("O horário final deve ser maior que o inicial.");
 
         await OverrideOverlappingIntervalsAsync(artistId, request, excludeAvailabilityId: id);
         await EnsureNoAgendaConflictAsync(artistId, BuildInterval(request), excludeAvailabilityId: id);

@@ -297,8 +297,8 @@ public class EventService(IAppDbContext db, ICurrentUserService currentUser, IDa
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ValidationException("O título é obrigatório.");
-        if (end <= start)
-            throw new ValidationException("O horário final deve ser maior que o inicial.");
+        // if (end <= start)
+        //     throw new ValidationException("O horário final deve ser maior que o inicial.");
     }
 
     private static void ValidateShare(ShareType type, decimal value)

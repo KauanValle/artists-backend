@@ -35,8 +35,8 @@ public class BookingService(
     {
         var contractorId = currentUser.EnsureContractor();
 
-        if (request.EndTime <= request.StartTime)
-            throw new ValidationException("O horário final deve ser maior que o inicial.");
+        // if (request.EndTime <= request.StartTime)
+        //     throw new ValidationException("O horário final deve ser maior que o inicial.");
         if (request.EventDate < DateOnly.FromDateTime(DateTime.Today))
             throw new ValidationException("A data do evento não pode estar no passado.");
 
@@ -100,8 +100,8 @@ public class BookingService(
             throw new ValidationException("Informe o WhatsApp do responsável.");
         if (request.Budget is not > 0)
             throw new ValidationException("Informe o valor da proposta.");
-        if (request.EndTime <= request.StartTime)
-            throw new ValidationException("O horário final deve ser maior que o inicial.");
+        // if (request.EndTime <= request.StartTime)
+        //     throw new ValidationException("O horário final deve ser maior que o inicial.");
         if (request.EventDate < DateOnly.FromDateTime(DateTime.Today))
             throw new ValidationException("A data do evento não pode estar no passado.");
 

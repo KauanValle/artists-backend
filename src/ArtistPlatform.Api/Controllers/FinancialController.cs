@@ -17,8 +17,9 @@ public class FinancialController(IFinancialService financialService) : Controlle
     public async Task<ActionResult<PagedResult<TransactionDto>>> List(
         [FromQuery] TransactionType? type, [FromQuery] TransactionStatus? status,
         [FromQuery] DateOnly? from, [FromQuery] DateOnly? to,
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        => Ok(await financialService.ListAsync(type, status, from, to, page, pageSize));
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? ordenarPor = null, [FromQuery] string? direcao = null)
+        => Ok(await financialService.ListAsync(type, status, from, to, page, pageSize, ordenarPor, direcao));
 
     [HttpPost("transactions")]
     public async Task<ActionResult<TransactionDto>> Create(CreateTransactionRequestDto request)

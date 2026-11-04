@@ -10,7 +10,8 @@ namespace ArtistPlatform.Application.Services;
 
 public interface IFinancialService
 {
-    Task<PagedResult<TransactionDto>> ListAsync(TransactionType? type, TransactionStatus? status, DateOnly? from, DateOnly? to, int page, int pageSize);
+    Task<PagedResult<TransactionDto>> ListAsync(TransactionType? type, TransactionStatus? status, DateOnly? from, DateOnly? to, int page, int pageSize,
+        string? ordenarPor = null, string? direcao = null);
     Task<TransactionDto> CreateAsync(CreateTransactionRequestDto request);
     Task<TransactionDto> UpdateAsync(Guid id, UpdateTransactionRequestDto request);
     Task DeleteAsync(Guid id);
@@ -20,11 +21,13 @@ public interface IFinancialService
 
 public class FinancialService(IAppDbContext db, ICurrentUserService currentUser, IDateTimeClock clock) : IFinancialService
 {
-    public async Task<PagedResult<TransactionDto>> ListAsync(TransactionType? type, TransactionStatus? status, DateOnly? from, DateOnly? to, int page, int pageSize)
+    public async Task<PagedResult<TransactionDto>> ListAsync(TransactionType? type, TransactionStatus? status, DateOnly? from, DateOnly? to, int page, int pageSize,
+        string? ordenarPor = null, string? direcao = null)
     {
         var artistId = currentUser.EnsureArtist();
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
+        var decrescente = !string.Equals(direcao, "asc", StringComparison.OrdinalIgnoreCase);
 
         var query = db.FinancialTransactions.AsNoTracking().Where(t => t.ArtistId == artistId);
         if (type.HasValue) query = query.Where(t => t.Type == type.Value);
@@ -33,8 +36,23 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
         if (to.HasValue) query = query.Where(t => t.DueDate <= to.Value);
 
         var total = await query.CountAsync();
-        var items = await query
-            .OrderByDescending(t => t.DueDate ?? DateOnly.FromDateTime(t.CreatedAt))
+
+        // Ordenação: valor ou vencimento (padrão: vencimento, mais recentes primeiro).
+        var campo = (ordenarPor ?? string.Empty).Trim().ToLowerInvariant();
+        IOrderedQueryable<FinancialTransaction> ordenada = campo switch
+        {
+            "valor" => decrescente
+                ? query.OrderByDescending(t => t.Amount)
+                : query.OrderBy(t => t.Amount),
+            "vencimento" => decrescente
+                ? query.OrderByDescending(t => t.DueDate ?? DateOnly.FromDateTime(t.CreatedAt))
+                : query.OrderBy(t => t.DueDate ?? DateOnly.FromDateTime(t.CreatedAt)),
+            _ => decrescente
+                ? query.OrderByDescending(t => t.DueDate ?? DateOnly.FromDateTime(t.CreatedAt))
+                : query.OrderBy(t => t.DueDate ?? DateOnly.FromDateTime(t.CreatedAt)),
+        };
+
+        var items = await ordenada
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
