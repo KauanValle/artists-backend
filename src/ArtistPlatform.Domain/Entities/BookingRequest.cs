@@ -31,9 +31,17 @@ public class BookingRequest : BaseEntity
     /// <summary>Solicitação aberta pela rota pública, sem contratante cadastrado.</summary>
     public bool IsGuest => ContractorId is null;
 
-    public Interval ToInterval() => new(
-        EventDate.ToDateTime(StartTime, DateTimeKind.Utc),
-        EventDate.ToDateTime(EndTime, DateTimeKind.Utc));
+    /// <summary>
+    /// Intervalo absoluto do show. Quando o fim é menor/igual ao início,
+    /// o show cruza a meia-noite e termina no dia seguinte.
+    /// </summary>
+    public Interval ToInterval()
+    {
+        var inicio = EventDate.ToDateTime(StartTime, DateTimeKind.Utc);
+        var fim = EventDate.ToDateTime(EndTime, DateTimeKind.Utc);
+        if (EndTime <= StartTime) fim = fim.AddDays(1);
+        return new Interval(inicio, fim);
+    }
 
     /// <summary>Estados de onde a contratação ainda pode evoluir. Rejeitada/expirada/cancelada são terminais (RN018).</summary>
     public bool CanEvolve =>

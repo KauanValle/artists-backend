@@ -164,14 +164,26 @@ public class BookingService(
         if (configuredWeekdays.Count > 0 && !configuredWeekdays.Contains((int)eventDate.DayOfWeek))
             throw new BusinessRuleException("RN009: o artista não atende nesse dia da semana.");
 
-        var hasBlock = await db.ArtistAvailabilities.AsNoTracking()
-            .AnyAsync(a => a.ArtistId == artistId &&
-                           a.Status != AvailabilityStatus.Available &&
-                           a.Date == eventDate &&
-                           a.StartTime < endTime &&
-                           a.EndTime > startTime);
-        if (hasBlock)
-            throw new BusinessRuleException("RN009: o artista está indisponível nessa data e horário.");
+        // Show que cruza a meia-noite: o fim cai no dia seguinte.
+        var cruzaMeiaNoite = endTime <= startTime;
+        var dataFim = cruzaMeiaNoite ? eventDate.AddDays(1) : eventDate;
+
+        var blockedRows = await db.ArtistAvailabilities.AsNoTracking()
+            .Where(a => a.ArtistId == artistId &&
+                        a.Status != AvailabilityStatus.Available &&
+                        (a.Date == eventDate || a.Date == dataFim))
+            .ToListAsync();
+        var inicioAbsoluto = eventDate.ToDateTime(startTime, DateTimeKind.Utc);
+        var fimAbsoluto = dataFim.ToDateTime(endTime, DateTimeKind.Utc);
+        var intervaloSolicitado = new Interval(inicioAbsoluto, fimAbsoluto);
+        foreach (var row in blockedRows)
+        {
+            var ri = new Interval(
+                row.Date.ToDateTime(row.StartTime, DateTimeKind.Utc),
+                row.Date.ToDateTime(row.IsAllDay ? new TimeOnly(23, 59, 59) : row.EndTime, DateTimeKind.Utc));
+            if (ri.Overlaps(intervaloSolicitado))
+                throw new BusinessRuleException("RN009: o artista está indisponível nessa data e horário.");
+        }
 
         // RN017: evento agendado/confirmado na agenda do artista ocupa o horário —
         // incluindo o tempo de deslocamento/montagem configurado pelo artista.
@@ -180,8 +192,8 @@ public class BookingService(
             .Select(a => a.TravelTimeMinutes)
             .FirstOrDefaultAsync();
         var buffer = TimeSpan.FromMinutes(Math.Max(0, travelMinutes));
-        var requestedStart = eventDate.ToDateTime(startTime, DateTimeKind.Utc) - buffer;
-        var requestedEnd = eventDate.ToDateTime(endTime, DateTimeKind.Utc) + buffer;
+        var requestedStart = inicioAbsoluto - buffer;
+        var requestedEnd = fimAbsoluto + buffer;
         var hasEvent = await db.Events.AsNoTracking()
             .AnyAsync(e => e.ArtistId == artistId &&
                            (e.Status == EventStatus.Scheduled || e.Status == EventStatus.Confirmed) &&
@@ -612,9 +624,12 @@ public class BookingService(
         if (hasEventConflict)
             throw new BusinessRuleException("RN017: você já possui um evento confirmado nesse horário.");
 
+        var dataFimAceite = interval.End > interval.Start && interval.End.Date != interval.Start.Date
+            ? DateOnly.FromDateTime(interval.End)
+            : booking.EventDate;
         var blockedRows = await db.ArtistAvailabilities.AsNoTracking()
             .Where(a => a.ArtistId == booking.ArtistId && a.Status != AvailabilityStatus.Available &&
-                        a.Date == booking.EventDate)
+                        (a.Date == booking.EventDate || a.Date == dataFimAceite))
             .ToListAsync();
         foreach (var row in blockedRows)
         {
