@@ -386,7 +386,7 @@ public class BookingService(
 
         if (booking.Status == BookingStatus.Completed)
             return await BuildCompleteDtoAsync(booking);
-        if ((booking.Status != BookingStatus.Confirmed || booking.Status != BookingStatus.AwaitingCompletionAccept) || booking.EventId is null)
+        if ((booking.Status != BookingStatus.AwaitingCompletionAccept) || booking.EventId is null)
             throw new BusinessRuleException("Apenas shows confirmados podem ser concluídos.");
 
         var ev = await db.Events.FirstAsync(e => e.Id == booking.EventId);
