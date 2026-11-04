@@ -382,6 +382,7 @@ public class BookingService(
     /// </summary>
     public async Task<CompleteShowDto> CompleteAsync(Guid id)
     {
+        var agora = DateTime.UtcNow;
         var booking = await EnsureAccessAsync(id);
 
         if (booking.Status == BookingStatus.Completed)
@@ -389,10 +390,15 @@ public class BookingService(
         if ((booking.Status != BookingStatus.AwaitingCompletionAccept &&
              booking.Status != BookingStatus.Confirmed) || booking.EventId is null)
             throw new BusinessRuleException("Apenas shows confirmados podem ser concluídos.");
-        
 
-        var ev = await db.Events.FirstAsync(e => e.Id == booking.EventId);
-        var agora = DateTime.UtcNow;
+        if (booking.EventDate != DateOnly.FromDateTime(agora))
+        {
+            throw new BusinessRuleException("Os shows só podem ser confirmados no dia do evento.");
+        }
+
+
+    var ev = await db.Events.FirstAsync(e => e.Id == booking.EventId);
+        
 
         if (currentUser.Role == UserRole.Contractor)
             ev.ContractorCompletedAt ??= agora;
