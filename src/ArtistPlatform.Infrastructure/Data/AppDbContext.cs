@@ -38,6 +38,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ArtistSocialLink> ArtistSocialLinks => Set<ArtistSocialLink>();
     public DbSet<ArtistEpk> ArtistEpks => Set<ArtistEpk>();
     public DbSet<ShowPayment> ShowPayments => Set<ShowPayment>();
+    public DbSet<ReviewPhoto> ReviewPhotos => Set<ReviewPhoto>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

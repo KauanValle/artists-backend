@@ -8,7 +8,7 @@ namespace ArtistPlatform.Api.Controllers;
 
 [ApiController]
 [Route("api/reviews")]
-public class ReviewsController(IReviewService reviewService) : ControllerBase
+public class ReviewsController(IReviewService reviewService, ICurrentUserService currentUser) : ControllerBase
 {
     /// <summary>Contratante avalia após o evento (RN014/RN015/RN016).</summary>
     [HttpPost]
@@ -21,6 +21,18 @@ public class ReviewsController(IReviewService reviewService) : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<List<ReviewDto>>> ListForArtist(Guid artistId)
         => Ok(await reviewService.ListForArtistAsync(artistId));
+
+    /// <summary>Shows concluídos aguardando avaliação do contratante logado.</summary>
+    [HttpGet("pending")]
+    [Authorize(Roles = "Contractor")]
+    public async Task<ActionResult<List<PendingReviewDto>>> Pending()
+        => Ok(await reviewService.PendingForContractorAsync(currentUser.EnsureContractor()));
+
+    /// <summary>Avaliações recebidas pelo artista logado (somente leitura).</summary>
+    [HttpGet("received")]
+    [Authorize(Roles = "Artist")]
+    public async Task<ActionResult<List<ReviewDto>>> Received()
+        => Ok(await reviewService.ListReceivedAsync(currentUser.UserId));
 }
 
 [ApiController]

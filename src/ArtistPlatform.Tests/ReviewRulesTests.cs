@@ -47,11 +47,8 @@ public class ReviewRulesTests
     private static CreateReviewRequestDto ValidRequest(Guid eventId) => new(
         EventId: eventId,
         OverallRating: 5,
-        Punctuality: 5,
-        Quality: 4,
-        Professionalism: 5,
-        Communication: 4,
-        Comment: "Ótimo show!");
+        Comment: "Ótimo show!",
+        Photos: null);
 
     [Fact]
     public async Task Create_AposEvento_CriaAvaliacaoENotifica()

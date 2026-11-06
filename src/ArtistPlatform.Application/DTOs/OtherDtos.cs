@@ -172,16 +172,24 @@ public record ReviewDto(
     int Professionalism,
     int Communication,
     string Comment,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    List<string> Photos);
+
+/// <summary>Show concluído aguardando avaliação do contratante.</summary>
+public record PendingReviewDto(
+    Guid EventId,
+    Guid ArtistId,
+    string ArtistName,
+    string? ArtistPhotoUrl,
+    string EventTitle,
+    DateTime EventDate,
+    string Location);
 
 public record CreateReviewRequestDto(
     Guid EventId,
     int OverallRating,
-    int Punctuality,
-    int Quality,
-    int Professionalism,
-    int Communication,
-    string Comment);
+    string? Comment,
+    List<string>? Photos);
 
 // ─────────────────────────── Favorites / Notifications / Contractor ───────────────────────────
 

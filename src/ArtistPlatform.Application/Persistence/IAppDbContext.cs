@@ -38,4 +38,5 @@ public interface IAppDbContext
     DbSet<ArtistSocialLink> ArtistSocialLinks { get; }
     DbSet<ArtistEpk> ArtistEpks { get; }
     DbSet<ShowPayment> ShowPayments { get; }
+    DbSet<ReviewPhoto> ReviewPhotos { get; }
 }

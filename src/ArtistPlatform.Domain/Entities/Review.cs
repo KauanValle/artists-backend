@@ -16,5 +16,5 @@ public class Review : BaseEntity
     public int Communication { get; set; }
     public string Comment { get; set; } = string.Empty;
 
-    public static bool IsValidRating(int value) => value is >= 1 and <= 5;
+    public static bool IsValidRating(int value) => value is >= 0 and <= 5;
 }

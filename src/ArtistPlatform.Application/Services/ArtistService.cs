@@ -342,7 +342,7 @@ public class ArtistService(IAppDbContext db) : IArtistService
             reviews.Select(r => new ReviewDto(
                 r.Id, r.ArtistId, r.ContractorId, contractors.GetValueOrDefault(r.ContractorId, "Contratante"),
                 r.EventId, r.OverallRating, r.Punctuality, r.Quality, r.Professionalism, r.Communication,
-                r.Comment, r.CreatedAt)).ToList());
+                r.Comment, r.CreatedAt, new List<string>())).ToList());
     }
 
     private async Task<(double? Avg, int Count)> GetRatingAsync(Guid artistId)

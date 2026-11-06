@@ -37,7 +37,7 @@ public class ShowCompletionTests
             ArtistId = artist.Id,
             ContractorId = contractor.Id,
             Status = BookingStatus.Confirmed,
-            EventDate = new DateOnly(2026, 11, 15),
+            EventDate = DateOnly.FromDateTime(DateTime.UtcNow),
             StartTime = new TimeOnly(20, 0),
             EndTime = new TimeOnly(23, 0),
             Location = "Bar do Carlos",
@@ -72,7 +72,8 @@ public class ShowCompletionTests
 
         var result = await Service(db, user).CompleteAsync(booking.Id);
 
-        Assert.Equal(BookingStatus.Confirmed, result.Status);
+        // Dupla confirmação: com só o artista confirmado, o show aguarda o contratante.
+        Assert.Equal(BookingStatus.AwaitingCompletionAccept, result.Status);
         Assert.True(result.ArtistConfirmed);
         Assert.False(result.ContractorConfirmed);
         Assert.False(string.IsNullOrWhiteSpace(result.ContractorToken));
@@ -134,7 +135,7 @@ public class ShowCompletionTests
 
         Assert.Equal("DJ Peruca", resumo.ArtistName);
         Assert.Equal("Bar do Carlos", resumo.Location);
-        Assert.Equal(new DateOnly(2026, 11, 15), resumo.EventDate);
+        Assert.Equal(booking.EventDate, resumo.EventDate);
         Assert.True(resumo.ArtistConfirmed);
         Assert.False(resumo.ContractorConfirmed);
     }

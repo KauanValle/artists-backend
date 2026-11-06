@@ -193,6 +193,16 @@ public class ArtistEpkConfiguration : IEntityTypeConfiguration<ArtistEpk>
     }
 }
 
+public class ReviewPhotoConfiguration : IEntityTypeConfiguration<ReviewPhoto>
+{
+    public void Configure(EntityTypeBuilder<ReviewPhoto> builder)
+    {
+        builder.ToTable("ReviewPhotos");
+        builder.Property(p => p.Url).HasMaxLength(500);
+        builder.HasIndex(p => p.ReviewId);
+    }
+}
+
 public class ShowPaymentConfiguration : IEntityTypeConfiguration<ShowPayment>
 {
     public void Configure(EntityTypeBuilder<ShowPayment> builder)
