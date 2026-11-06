@@ -13,4 +13,10 @@ public class AppUser : IdentityUser<Guid>
 
     /// <summary>Cargo de acesso: Gratuito (padrão, funções bloqueadas) ou Assinante (acesso total).</summary>
     public SubscriptionTier SubscriptionTier { get; set; } = SubscriptionTier.Gratuito;
+
+    /// <summary>Tutorial de onboarding concluído (segue a conta em qualquer dispositivo).</summary>
+    public bool TutorialFeito { get; set; }
+
+    /// <summary>Ids dos passos já concluídos do tutorial (JSON).</summary>
+    public string TutorialPassos { get; set; } = "[]";
 }

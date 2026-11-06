@@ -4,7 +4,10 @@ namespace ArtistPlatform.Application.DTOs;
 
 // ─────────────────────────── Auth ───────────────────────────
 
-public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, Guid? ArtistId, Guid? ContractorId, SubscriptionTier SubscriptionTier, bool PerfilCompleto);
+public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, Guid? ArtistId, Guid? ContractorId, SubscriptionTier SubscriptionTier, bool PerfilCompleto, bool TutorialFeito, List<string> TutorialPassos);
+
+/// <summary>Progresso do tutorial de onboarding do usuário logado.</summary>
+public record SalvarTutorialRequest(bool Feito, List<string> Passos);
 
 public record AuthResponse(string AccessToken, string RefreshToken, DateTime ExpiresAtUtc, UserDto User);
 

@@ -45,6 +45,15 @@ public class AuthController(IIdentityService identityService) : ControllerBase
     public async Task<ActionResult<AuthResponse>> Refresh(RefreshTokenRequest request)
         => Ok(await identityService.RefreshTokenAsync(request.RefreshToken));
 
+    /// <summary>Salva o progresso do tutorial de onboarding do usuário logado.</summary>
+    [HttpPut("tutorial")]
+    [Authorize]
+    public async Task<ActionResult<UserDto>> SalvarTutorial(SalvarTutorialRequest request)
+    {
+        var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        return Ok(await identityService.SalvarTutorialAsync(userId, request));
+    }
+
     /// <summary>Revoga o refresh token (logout).</summary>
     [HttpPost("logout")]
     [Authorize]

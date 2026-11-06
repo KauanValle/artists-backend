@@ -6,6 +6,8 @@ namespace ArtistPlatform.Application.Interfaces;
 public interface IIdentityService
 {
     Task<UserDto> GetCurrentUserAsync(Guid userId);
+    /// <summary>Salva o progresso do tutorial de onboarding do usuário.</summary>
+    Task<UserDto> SalvarTutorialAsync(Guid userId, SalvarTutorialRequest request);
     /// <summary>Cadastro unificado (identidade apenas); perfil completado depois.</summary>
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     /// <summary>Login/cadastro via Google (valida o ID token do botão).</summary>

@@ -393,7 +393,17 @@ public class IdentityService(
         return new AuthResponse(accessToken, refreshToken, accessExpires, ToDto(user));
     }
 
-    private static UserDto ToDto(AppUser user)
+    public async Task<UserDto> SalvarTutorialAsync(Guid userId, SalvarTutorialRequest request)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new NotFoundException("Usuário não encontrado.");
+        user.TutorialFeito = request.Feito;
+        user.TutorialPassos = System.Text.Json.JsonSerializer.Serialize(request.Passos ?? new List<string>());
+        await userManager.UpdateAsync(user);
+        return ToDto(user);
+    }
+
+    private UserDto ToDto(AppUser user)
     {
         var perfilCompleto = user.Role switch
         {
@@ -402,8 +412,18 @@ public class IdentityService(
             UserRole.Contractor => user.ContractorId is not null,
             _ => false
         };
+        List<string> tutorialPassos;
+        try
+        {
+            tutorialPassos = System.Text.Json.JsonSerializer.Deserialize<List<string>>(user.TutorialPassos ?? "[]")
+                ?? new List<string>();
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            tutorialPassos = new List<string>();
+        }
         return new UserDto(user.Id, user.Email ?? string.Empty, user.DisplayName, user.Role, user.ArtistId,
-            user.ContractorId, user.SubscriptionTier, perfilCompleto);
+            user.ContractorId, user.SubscriptionTier, perfilCompleto, user.TutorialFeito, tutorialPassos);
     }
 
     /// <summary>Promoção da conta para Assinante após PAYMENT_CONFIRMED no webhook.</summary>

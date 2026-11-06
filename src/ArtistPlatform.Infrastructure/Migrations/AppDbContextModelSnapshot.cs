@@ -1547,6 +1547,13 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(1);
 
+                    b.Property<bool>("TutorialFeito")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TutorialPassos")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
