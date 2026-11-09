@@ -104,6 +104,8 @@ public static class DependencyInjection
         // InfinityPay — links de pagamento do cachê dos shows
         services.Configure<InfinityPayOptions>(configuration.GetSection(InfinityPayOptions.SectionName));
         services.AddHttpClient<IInfinityPayClient, InfinityPayClient>();
+        services.AddScoped<ArtistPlatform.Application.Interfaces.IPushNotificationSender, PushNotificationSender>();
+        services.AddScoped<ArtistPlatform.Application.Interfaces.IPushSubscriptionService, PushSubscriptionService>();
         services.AddScoped<IBillingService, BillingService>();
 
         return services;

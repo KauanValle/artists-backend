@@ -1102,6 +1102,38 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.ToTable("ProposalItems", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.PushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PushSubscriptions");
+                });
+
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")

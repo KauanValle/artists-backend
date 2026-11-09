@@ -10,6 +10,8 @@ public interface IAppDbContext
 {
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
+    DbSet<PushSubscription> PushSubscriptions { get; }
+
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Artist> Artists { get; }
     DbSet<ArtistProfile> ArtistProfiles { get; }

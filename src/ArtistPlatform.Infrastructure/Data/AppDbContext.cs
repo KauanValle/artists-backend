@@ -10,6 +10,8 @@ namespace ArtistPlatform.Infrastructure.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<Identity.AppUser, Microsoft.AspNetCore.Identity.IdentityRole<Guid>, Guid>(options), IAppDbContext
 {
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Artist> Artists => Set<Artist>();
     public DbSet<ArtistProfile> ArtistProfiles => Set<ArtistProfile>();

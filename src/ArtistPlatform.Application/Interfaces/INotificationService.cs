@@ -16,7 +16,7 @@ public interface INotificationService
     Task MarkAllReadAsync();
 }
 
-public class NotificationService(IAppDbContext db, ICurrentUserService currentUser) : INotificationService
+public class NotificationService(IAppDbContext db, ICurrentUserService currentUser, IPushNotificationSender? pushSender = null) : INotificationService
 {
     public async Task NotifyAsync(Guid userId, NotificationType type, string title, string message, string? link = null)
     {
@@ -29,6 +29,19 @@ public class NotificationService(IAppDbContext db, ICurrentUserService currentUs
             Link = link
         });
         await db.SaveChangesAsync();
+
+        // Push Web Push (celular/PWA) é best-effort: falha de envio não afeta a notificação in-app.
+        if (pushSender != null)
+        {
+            try
+            {
+                await pushSender.SendToUserAsync(userId, title, message, link);
+            }
+            catch
+            {
+                // enviado best-effort; falhas de push não devem interromper o fluxo
+            }
+        }
     }
 
     public async Task<List<NotificationDto>> ListForUserAsync(bool? unreadOnly)
