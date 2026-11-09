@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -100,10 +101,7 @@ public static class WebPushProtocol
             // Cabeçalho aes128gcm (RFC 8188): salt(16) | rs(4) | idlen(1) | keyid (= chave pública do servidor, 65)
             var corpo = new byte[16 + 4 + 1 + chavePublicaServidor.Length + cifrado.Length + tag.Length];
             salt.CopyTo(corpo, 0);
-            corpo[16] = (byte)(TamanhoRegistro >> 24);
-            corpo[17] = (byte)(TamanhoRegistro >> 16);
-            corpo[18] = (byte)(TamanhoRegistro >> 8);
-            corpo[19] = (byte)TamanhoRegistro;
+            BinaryPrimitives.WriteUInt32BigEndian(corpo.AsSpan(16, 4), TamanhoRegistro);
             corpo[20] = (byte)chavePublicaServidor.Length;
             chavePublicaServidor.CopyTo(corpo, 21);
             cifrado.CopyTo(corpo, 21 + chavePublicaServidor.Length);
