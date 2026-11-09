@@ -116,7 +116,7 @@ public static class WebPushProtocol
             requisicao.Content.Headers.ContentEncoding.Add("aes128gcm");
             // TTL e Urgency são cabeçalhos da requisição (não do conteúdo).
             requisicao.Headers.TryAddWithoutValidation("TTL", "2419200"); // 28 dias
-            requisicao.Headers.TryAddWithoutValidation("Urgency", "normal");
+            requisicao.Headers.TryAddWithoutValidation("Urgency", "high");
             requisicao.Headers.TryAddWithoutValidation("Authorization", $"vapid t={jwt}, k={Base64UrlEncode(chavePublicaVapid)}");
 
             using var resposta = await Http.SendAsync(requisicao);
