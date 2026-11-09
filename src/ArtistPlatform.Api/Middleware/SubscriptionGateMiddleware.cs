@@ -17,7 +17,7 @@ namespace ArtistPlatform.Api.Middleware;
 public class SubscriptionGateMiddleware(RequestDelegate next)
 {
     private static readonly string[] AllowedPathPrefixes =
-        ["/api/auth", "/api/billing", "/api/webhooks", "/api/notifications"];
+        ["/api/auth", "/api/billing", "/api/webhooks", "/api/notifications", "/api/push"];
 
     public async Task InvokeAsync(HttpContext context, AppDbContext db)
     {

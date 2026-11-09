@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -10,6 +11,10 @@ public static class WebPushProtocol
 {
     public record Resultado(bool Sucesso, HttpStatusCode? Status, string? Erro);
 
+    private const int TamanhoRegistro = 4096; // rs do cabeçalho aes128gcm (RFC 8188)
+
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+
     /// <summary>Criptografa o payload (aes128gcm), assina o VAPID (ES256) e entrega no endpoint do push service.</summary>
     public static async Task<Resultado> EnviarAsync(
         string endpoint,
@@ -20,105 +25,123 @@ public static class WebPushProtocol
         string vapidPublicKeyB64Url,
         string vapidPrivateKeyB64Url)
     {
-        // ── VAPID: JWT assinado com ES256 usando a chave privada ──
-        var chavePrivada = Base64UrlDecode(vapidPrivateKeyB64Url);
-        var ecdsaVapid = ECDsa.Create(new ECParameters
+        try
         {
-            Curve = ECCurve.NamedCurves.nistP256,
-            D = chavePrivada
-        });
+            // ── Chaves do navegador (user agent) ──
+            var chavePublicaUsuario = Base64UrlDecode(p256dhBase64Url);
+            var authSecret = Base64UrlDecode(authBase64Url);
+            if (chavePublicaUsuario.Length != 65 || chavePublicaUsuario[0] != 0x04)
+                return new Resultado(false, HttpStatusCode.BadRequest, "chave p256dh inválida");
 
-        var agora = DateTimeOffset.UtcNow;
-        var cabecalho = Base64UrlEncode(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { typ = "JWT", alg = "ES256" })));
-        var audiencia = new Uri(endpoint).GetLeftPart(UriPartial.Authority);
-        var claims = Base64UrlEncode(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+            // ── VAPID: JWT assinado com ES256 usando a chave privada ──
+            var chavePrivadaVapid = Base64UrlDecode(vapidPrivateKeyB64Url);
+            var chavePublicaVapid = Base64UrlDecode(vapidPublicKeyB64Url);
+            if (chavePrivadaVapid.Length != 32 || chavePublicaVapid.Length != 65 || chavePublicaVapid[0] != 0x04)
+                return new Resultado(false, null, "chaves VAPID inválidas");
+
+            // O .NET exige o ponto público (Q) junto com D ao importar uma chave EC.
+            using var ecdsaVapid = ECDsa.Create(new ECParameters
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                D = chavePrivadaVapid,
+                Q = new ECPoint { X = chavePublicaVapid[1..33], Y = chavePublicaVapid[33..65] }
+            });
+
+            var cabecalho = Base64UrlEncode(Encoding.UTF8.GetBytes("{\"typ\":\"JWT\",\"alg\":\"ES256\"}"));
+            var audiencia = new Uri(endpoint).GetLeftPart(UriPartial.Authority);
+            var claims = Base64UrlEncode(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+            {
+                aud = audiencia,
+                exp = DateTimeOffset.UtcNow.AddHours(12).ToUnixTimeSeconds(),
+                sub = vapidSubject
+            })));
+            var assinado = $"{cabecalho}.{claims}";
+            // SignData no .NET já devolve r||s (64 bytes, IEEE P1363) — formato exigido pelo JWT ES256.
+            var assinatura = ecdsaVapid.SignData(Encoding.UTF8.GetBytes(assinado), HashAlgorithmName.SHA256);
+            var jwt = $"{assinado}.{Base64UrlEncode(assinatura)}";
+
+            // ── Criptografia do payload (RFC 8291, aes128gcm) ──
+            using var usuarioEcdh = ECDiffieHellman.Create(new ECParameters
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                Q = new ECPoint { X = chavePublicaUsuario[1..33], Y = chavePublicaUsuario[33..65] }
+            });
+            using var efemera = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
+            var parametrosEfemera = efemera.ExportParameters(false);
+            var chavePublicaServidor = new byte[65];
+            chavePublicaServidor[0] = 0x04;
+            parametrosEfemera.Q.X!.CopyTo(chavePublicaServidor, 1);
+            parametrosEfemera.Q.Y!.CopyTo(chavePublicaServidor, 33);
+
+            var segredoCompartilhado = efemera.DeriveRawSecretAgreement(usuarioEcdh.PublicKey);
+
+            // RFC 8291 §3.4: IKM = HKDF(salt=auth_secret, ikm=ecdh, info="WebPush: info\0" || ua_public || as_public)
+            var infoChave = Concatenar(
+                Encoding.UTF8.GetBytes("WebPush: info\0"),
+                chavePublicaUsuario,
+                chavePublicaServidor);
+            var ikm = HKDF.DeriveKey(HashAlgorithmName.SHA256, segredoCompartilhado, 32, authSecret, infoChave);
+
+            var salt = RandomNumberGenerator.GetBytes(16);
+            var cek = HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, 16, salt, Encoding.UTF8.GetBytes("Content-Encoding: aes128gcm\0"));
+            var nonce = HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, 12, salt, Encoding.UTF8.GetBytes("Content-Encoding: nonce\0"));
+
+            // registro único: payload + delimitador 0x02 (último registro)
+            var textoPayload = Encoding.UTF8.GetBytes(payloadJson);
+            var textoAberto = new byte[textoPayload.Length + 1];
+            textoPayload.CopyTo(textoAberto, 0);
+            textoAberto[^1] = 0x02;
+
+            using var aes = new AesGcm(cek, 16);
+            var cifrado = new byte[textoAberto.Length];
+            var tag = new byte[16];
+            aes.Encrypt(nonce, textoAberto, cifrado, tag);
+
+            // Cabeçalho aes128gcm (RFC 8188): salt(16) | rs(4) | idlen(1) | keyid (= chave pública do servidor, 65)
+            var corpo = new byte[16 + 4 + 1 + chavePublicaServidor.Length + cifrado.Length + tag.Length];
+            salt.CopyTo(corpo, 0);
+            corpo[16] = (byte)(TamanhoRegistro >> 24);
+            corpo[17] = (byte)(TamanhoRegistro >> 16);
+            corpo[18] = (byte)(TamanhoRegistro >> 8);
+            corpo[19] = (byte)TamanhoRegistro;
+            corpo[20] = (byte)chavePublicaServidor.Length;
+            chavePublicaServidor.CopyTo(corpo, 21);
+            cifrado.CopyTo(corpo, 21 + chavePublicaServidor.Length);
+            tag.CopyTo(corpo, 21 + chavePublicaServidor.Length + cifrado.Length);
+
+            // ── Envio ──
+            using var requisicao = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            {
+                Content = new ByteArrayContent(corpo)
+            };
+            requisicao.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            requisicao.Content.Headers.ContentEncoding.Add("aes128gcm");
+            // TTL e Urgency são cabeçalhos da requisição (não do conteúdo).
+            requisicao.Headers.TryAddWithoutValidation("TTL", "2419200"); // 28 dias
+            requisicao.Headers.TryAddWithoutValidation("Urgency", "normal");
+            requisicao.Headers.TryAddWithoutValidation("Authorization", $"vapid t={jwt}, k={Base64UrlEncode(chavePublicaVapid)}");
+
+            using var resposta = await Http.SendAsync(requisicao);
+            if (resposta.IsSuccessStatusCode)
+                return new Resultado(true, resposta.StatusCode, null);
+
+            return new Resultado(false, resposta.StatusCode, await resposta.Content.ReadAsStringAsync());
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or CryptographicException or FormatException or UriFormatException)
         {
-            aud = audiencia,
-            exp = agora.AddHours(12).ToUnixTimeSeconds(),
-            sub = vapidSubject
-        })));
-        var assinado = $"{cabecalho}.{claims}";
-        var assinaturaDer = ecdsaVapid.SignData(Encoding.UTF8.GetBytes(assinado), HashAlgorithmName.SHA256);
-        var assinatura = DerParaFixo(assinaturaDer);
-        var jwt = $"{assinado}.{Base64UrlEncode(assinatura)}";
-        var chavePublicaVapid = Base64UrlDecode(vapidPublicKeyB64Url);
-
-        // ── Criptografia do payload (RFC 8291, aes128gcm) ──
-        var chavePublicaUsuario = Base64UrlDecode(p256dhBase64Url);
-        var authSecret = Base64UrlDecode(authBase64Url);
-        if (chavePublicaUsuario.Length != 65 || chavePublicaUsuario[0] != 0x04)
-            return new Resultado(false, HttpStatusCode.BadRequest, "chave p256dh inválida");
-
-        var usuarioEcdh = ECDiffieHellman.Create(new ECParameters
-        {
-            Curve = ECCurve.NamedCurves.nistP256,
-            Q = { X = chavePublicaUsuario[1..33], Y = chavePublicaUsuario[33..65] }
-        });
-        var efemera = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
-        var segredoCompartilhado = efemera.DeriveRawSecretAgreement(usuarioEcdh.PublicKey);
-
-        // RFC 8291 §3.3: com auth_secret, o IKM é HKDF-Extract(auth_secret, segredo)
-        var ikm = HKDF.DeriveKey(HashAlgorithmName.SHA256, segredoCompartilhado, 32, authSecret, Array.Empty<byte>());
-        var salt = RandomNumberGenerator.GetBytes(16);
-        var cek = HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, 16, salt, Encoding.UTF8.GetBytes("Content-Encoding: aes128gcm\u0000"));
-        var nonce = HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, 12, salt, Encoding.UTF8.GetBytes("Content-Encoding: nonce\u0000"));
-
-        // registro único: payload + delimitador de último registro ()
-        var textoPayload = Encoding.UTF8.GetBytes(payloadJson);
-        var textoAberto = new byte[textoPayload.Length + 1];
-        textoPayload.CopyTo(textoAberto, 0);
-        textoAberto[^1] = 0x02;
-
-        using var aes = new AesGcm(cek, 16);
-        var cifrado = new byte[textoAberto.Length];
-        var tag = new byte[16];
-        aes.Encrypt(nonce, textoAberto, cifrado, tag);
-
-        var corpo = new byte[16 + 4 + cifrado.Length + tag.Length];
-        salt.CopyTo(corpo, 0);
-        var tamanho = (uint)(cifrado.Length + tag.Length);
-        corpo[16] = (byte)(tamanho >> 24);
-        corpo[17] = (byte)(tamanho >> 16);
-        corpo[18] = (byte)(tamanho >> 8);
-        corpo[19] = (byte)tamanho;
-        cifrado.CopyTo(corpo, 20);
-        tag.CopyTo(corpo, 20 + cifrado.Length);
-
-        // ── Envio ──
-        using var httpClient = new HttpClient();
-        using var requisicao = new HttpRequestMessage(HttpMethod.Post, endpoint)
-        {
-            Content = new ByteArrayContent(corpo)
-        };
-        requisicao.Content.Headers.Add("Content-Encoding", "aes128gcm");
-        requisicao.Content.Headers.Add("Content-Type", "application/octet-stream");
-        requisicao.Content.Headers.Add("TTL", "2419200"); // 28 dias
-        requisicao.Headers.TryAddWithoutValidation("Authorization", $"vapid t={jwt}, k={Base64UrlEncode(chavePublicaVapid)}");
-
-        var resposta = await httpClient.SendAsync(requisicao);
-        if (resposta.IsSuccessStatusCode)
-            return new Resultado(true, resposta.StatusCode, null);
-
-        return new Resultado(false, resposta.StatusCode, await resposta.Content.ReadAsStringAsync());
+            return new Resultado(false, null, ex.Message);
+        }
     }
 
-    /// <summary>Converte assinatura ECDSA em formato DER para o formato bruto r||s de 64 bytes (ES256).</summary>
-    private static byte[] DerParaFixo(byte[] der)
+    private static byte[] Concatenar(params byte[][] partes)
     {
-        var i = 2;
-        var rLen = der[i + 1];
-        var r = der[(i + 2)..(i + 2 + rLen)];
-        i += 2 + rLen;
-        var sLen = der[i + 1];
-        var s = der[(i + 2)..(i + 2 + sLen)];
-
-        var rFixo = new byte[32];
-        var sFixo = new byte[32];
-        r.CopyTo(rFixo[^r.Length..]);
-        s.CopyTo(sFixo[^s.Length..]);
-        var resultado = new byte[64];
-        rFixo.CopyTo(resultado, 0);
-        sFixo.CopyTo(resultado, 32);
+        var resultado = new byte[partes.Sum(p => p.Length)];
+        var posicao = 0;
+        foreach (var parte in partes)
+        {
+            parte.CopyTo(resultado, posicao);
+            posicao += parte.Length;
+        }
         return resultado;
     }
 

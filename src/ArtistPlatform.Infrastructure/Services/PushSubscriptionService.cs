@@ -24,6 +24,8 @@ public class PushSubscriptionService(IAppDbContext db) : IPushSubscriptionServic
         }
         else
         {
+            // Mesmo navegador/aparelho pode ser usado por outra conta: a inscrição passa para o usuário atual.
+            existente.UserId = userId;
             existente.P256dh = p256dh;
             existente.Auth = auth;
             existente.UpdatedAt = DateTime.UtcNow;
