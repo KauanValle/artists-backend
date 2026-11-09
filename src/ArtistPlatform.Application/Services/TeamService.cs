@@ -64,6 +64,7 @@ public class TeamService(IAppDbContext db, ICurrentUserService currentUser) : IT
         member.Role = request.Role ?? string.Empty;
         member.Phone = request.Phone ?? string.Empty;
         member.Email = request.Email ?? string.Empty;
+        member.AllocationType = request.AllocationType;
         member.DefaultShareType = request.DefaultShareType;
         member.DefaultShareValue = request.DefaultShareValue;
         member.Notes = request.Notes ?? string.Empty;
