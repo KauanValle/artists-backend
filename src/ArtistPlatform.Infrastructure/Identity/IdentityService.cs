@@ -423,7 +423,8 @@ public class IdentityService(
             tutorialPassos = new List<string>();
         }
         return new UserDto(user.Id, user.Email ?? string.Empty, user.DisplayName, user.Role, user.ArtistId,
-            user.ContractorId, user.SubscriptionTier, perfilCompleto, user.TutorialFeito, tutorialPassos);
+            user.ContractorId, user.SubscriptionTier, perfilCompleto, user.TutorialFeito, tutorialPassos,
+            user.IsDeactivated, user.DeactivationMessage);
     }
 
     /// <summary>Promoção da conta para Assinante após PAYMENT_CONFIRMED no webhook.</summary>

@@ -4,7 +4,7 @@ namespace ArtistPlatform.Application.DTOs;
 
 // ─────────────────────────── Auth ───────────────────────────
 
-public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, Guid? ArtistId, Guid? ContractorId, SubscriptionTier SubscriptionTier, bool PerfilCompleto, bool TutorialFeito, List<string> TutorialPassos);
+public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, Guid? ArtistId, Guid? ContractorId, SubscriptionTier SubscriptionTier, bool PerfilCompleto, bool TutorialFeito, List<string> TutorialPassos, bool IsDeactivated = false, string? DeactivationMessage = null);
 
 /// <summary>Progresso do tutorial de onboarding do usuário logado.</summary>
 public record SalvarTutorialRequest(bool Feito, List<string> Passos);
@@ -179,3 +179,57 @@ public record BatchAvailabilityResultDto(int Created, int SkippedExisting, int S
 
 /// <summary>Janela ocupada por evento (agendado/confirmado) — usada para bloquear horários na contratação.</summary>
 public record BusySlotDto(DateOnly Date, TimeOnly StartTime, TimeOnly EndTime, string Status);
+
+// ─────────────────────────── Admin User Management ───────────────────────────
+
+/// <summary>Estatísticas do artista para o painel admin.</summary>
+public record AdminArtistStatsDto(
+    Guid ArtistId,
+    string Name,
+    string ArtisticName,
+    string? ProfilePhotoUrl,
+    string CategoryName,
+    string City,
+    string State,
+    double? AverageRating,
+    int ReviewCount,
+    bool IsPublished,
+    bool IsDeactivated,
+    string? DeactivationMessage,
+    int TotalShows,
+    int MonthShows,
+    int YearShows,
+    decimal ValorConfirmadosConcluidos,
+    decimal TaxaAdministrativa);
+
+/// <summary>Estatísticas do contratante para o painel admin.</summary>
+public record AdminContractorStatsDto(
+    Guid ContractorId,
+    string Name,
+    string? CompanyName,
+    string? Phone,
+    string City,
+    string State,
+    bool IsDeactivated,
+    string? DeactivationMessage,
+    int TotalContratados,
+    int MonthContratados,
+    int YearContratados,
+    decimal TaxasPagas);
+
+/// <summary>Requisição de desativação de conta pelo admin.</summary>
+public record DeactivateUserRequest(string Message);
+
+/// <summary>Listagem de contratantes para o admin.</summary>
+public record AdminContractorListDto(
+    Guid ContractorId,
+    Guid UserId,
+    string Name,
+    string? CompanyName,
+    string City,
+    string State,
+    string? Phone,
+    int TotalBookings,
+    int ConfirmedBookings,
+    decimal TotalSpent,
+    bool IsDeactivated);

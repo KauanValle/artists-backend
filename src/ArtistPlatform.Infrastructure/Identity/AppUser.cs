@@ -19,4 +19,10 @@ public class AppUser : IdentityUser<Guid>
 
     /// <summary>Ids dos passos já concluídos do tutorial (JSON).</summary>
     public string TutorialPassos { get; set; } = "[]";
+
+    /// <summary>Conta desativada pelo administrador — bloqueia o acesso ao painel.</summary>
+    public bool IsDeactivated { get; set; }
+
+    /// <summary>Mensagem personalizada exibida ao usuário quando a conta está desativada.</summary>
+    public string? DeactivationMessage { get; set; }
 }
