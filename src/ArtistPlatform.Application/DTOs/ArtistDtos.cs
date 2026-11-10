@@ -220,6 +220,22 @@ public record AdminContractorStatsDto(
 /// <summary>Requisição de desativação de conta pelo admin.</summary>
 public record DeactivateUserRequest(string Message);
 
+/// <summary>Listagem de artistas para o admin (todos os perfis).</summary>
+public record AdminArtistListDto(
+    Guid ArtistId,
+    Guid UserId,
+    string Name,
+    string ArtisticName,
+    string? ProfilePhotoUrl,
+    string CategoryName,
+    string City,
+    string State,
+    double? AverageRating,
+    int ReviewCount,
+    bool IsPublished,
+    bool IsDeactivated,
+    int TotalBookings);
+
 /// <summary>Listagem de contratantes para o admin.</summary>
 public record AdminContractorListDto(
     Guid ContractorId,

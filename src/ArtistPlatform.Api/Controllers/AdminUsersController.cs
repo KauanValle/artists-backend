@@ -22,6 +22,66 @@ public class AdminUsersController(
 {
     // ───────────────────── Artistas ─────────────────────
 
+    /// <summary>Lista todos os artistas para o painel admin (publicados, não publicados, desativados).</summary>
+    [HttpGet("artists")]
+    public async Task<ActionResult<List<AdminArtistListDto>>> ListArtists()
+    {
+        var artists = await db.Artists
+            .Include(a => a.Category)
+            .ToListAsync();
+
+        var artistIds = artists.Select(a => a.Id).ToList();
+
+        // Perfis (para saber se está publicado)
+        var profiles = await db.ArtistProfiles
+            .Where(p => artistIds.Contains(p.ArtistId))
+            .ToListAsync();
+
+        // Reviews para média
+        var reviews = await db.Reviews
+            .Where(r => artistIds.Contains(r.ArtistId))
+            .GroupBy(r => r.ArtistId)
+            .Select(g => new { ArtistId = g.Key, Avg = g.Average(r => r.OverallRating), Count = g.Count() })
+            .ToListAsync();
+
+        // Bookings count
+        var bookingCounts = await db.BookingRequests
+            .Where(b => b.ArtistId != null && artistIds.Contains(b.ArtistId.Value))
+            .GroupBy(b => b.ArtistId!.Value)
+            .Select(g => new { ArtistId = g.Key, Total = g.Count() })
+            .ToListAsync();
+
+        // Users (para deactivation status)
+        var users = await userManager.Users
+            .Where(u => u.ArtistId != null && artistIds.Contains(u.ArtistId.Value))
+            .ToListAsync();
+
+        var result = artists.Select(a =>
+        {
+            var profile = profiles.FirstOrDefault(p => p.ArtistId == a.Id);
+            var review = reviews.FirstOrDefault(r => r.ArtistId == a.Id);
+            var booking = bookingCounts.FirstOrDefault(b => b.ArtistId == a.Id);
+            var user = users.FirstOrDefault(u => u.ArtistId == a.Id);
+
+            return new AdminArtistListDto(
+                ArtistId: a.Id,
+                UserId: user?.Id ?? Guid.Empty,
+                Name: a.Name,
+                ArtisticName: a.ArtisticName,
+                ProfilePhotoUrl: a.ProfilePhotoUrl,
+                CategoryName: a.Category?.Name ?? "",
+                City: a.City,
+                State: a.State,
+                AverageRating: review?.Avg,
+                ReviewCount: review?.Count ?? 0,
+                IsPublished: profile?.IsPublished ?? false,
+                IsDeactivated: user?.IsDeactivated ?? false,
+                TotalBookings: booking?.Total ?? 0);
+        }).ToList();
+
+        return Ok(result);
+    }
+
     /// <summary>Estatísticas completas de um artista para o painel admin.</summary>
     [HttpGet("artists/{artistId:guid}/stats")]
     public async Task<ActionResult<AdminArtistStatsDto>> GetArtistStats(Guid artistId)
