@@ -24,12 +24,15 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
     public async Task<PagedResult<TransactionDto>> ListAsync(TransactionType? type, TransactionStatus? status, DateOnly? from, DateOnly? to, int page, int pageSize,
         string? ordenarPor = null, string? direcao = null)
     {
-        var artistId = currentUser.EnsureArtist();
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+        Guid? artistId = isAdmin ? null : currentUser.EnsureArtist();
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
         var decrescente = !string.Equals(direcao, "asc", StringComparison.OrdinalIgnoreCase);
 
-        var query = db.FinancialTransactions.AsNoTracking().Where(t => t.ArtistId == artistId);
+        var query = db.FinancialTransactions.AsNoTracking().AsQueryable();
+        if (!isAdmin)
+            query = query.Where(t => t.ArtistId == artistId);
         if (type.HasValue) query = query.Where(t => t.Type == type.Value);
         if (status.HasValue) query = query.Where(t => t.Status == status.Value);
         if (from.HasValue) query = query.Where(t => t.DueDate >= from.Value);
@@ -70,7 +73,10 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
 
     public async Task<TransactionDto> CreateAsync(CreateTransactionRequestDto request)
     {
-        var artistId = currentUser.EnsureArtist();
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+        var artistId = isAdmin
+            ? (request.ArtistId ?? throw new ValidationException("ArtistId é obrigatório para admin."))
+            : currentUser.EnsureArtist();
         ValidateAmount(request.Amount);
 
         var tx = new FinancialTransaction
@@ -92,9 +98,17 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
 
     public async Task<TransactionDto> UpdateAsync(Guid id, UpdateTransactionRequestDto request)
     {
-        var artistId = currentUser.EnsureArtist();
-        var tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id && t.ArtistId == artistId)
-            ?? throw new NotFoundException("Transação não encontrada.");
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+        FinancialTransaction tx;
+        if (isAdmin)
+            tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id)
+                ?? throw new NotFoundException("Transação não encontrada.");
+        else
+        {
+            var artistId = currentUser.EnsureArtist();
+            tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id && t.ArtistId == artistId)
+                ?? throw new NotFoundException("Transação não encontrada.");
+        }
 
         ValidateAmount(request.Amount);
         tx.Category = request.Category.Trim();
@@ -111,9 +125,17 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
 
     public async Task DeleteAsync(Guid id)
     {
-        var artistId = currentUser.EnsureArtist();
-        var tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id && t.ArtistId == artistId)
-            ?? throw new NotFoundException("Transação não encontrada.");
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+        FinancialTransaction tx;
+        if (isAdmin)
+            tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id)
+                ?? throw new NotFoundException("Transação não encontrada.");
+        else
+        {
+            var artistId = currentUser.EnsureArtist();
+            tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id && t.ArtistId == artistId)
+                ?? throw new NotFoundException("Transação não encontrada.");
+        }
         db.FinancialTransactions.Remove(tx);
         await db.SaveChangesAsync();
     }
@@ -121,9 +143,17 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
     /// <summary>Receita marcada como recebida / despesa marcada como paga.</summary>
     public async Task<TransactionDto> MarkSettledAsync(Guid id)
     {
-        var artistId = currentUser.EnsureArtist();
-        var tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id && t.ArtistId == artistId)
-            ?? throw new NotFoundException("Transação não encontrada.");
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+        FinancialTransaction tx;
+        if (isAdmin)
+            tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id)
+                ?? throw new NotFoundException("Transação não encontrada.");
+        else
+        {
+            var artistId = currentUser.EnsureArtist();
+            tx = await db.FinancialTransactions.FirstOrDefaultAsync(t => t.Id == id && t.ArtistId == artistId)
+                ?? throw new NotFoundException("Transação não encontrada.");
+        }
 
         tx.Status = tx.Type == TransactionType.Income ? TransactionStatus.Received : TransactionStatus.Paid;
         tx.SettlementDate = clock.Today;
@@ -136,12 +166,14 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
     /// <summary>Dashboard financeiro (PRD §7/§12): previsto × recebido, despesas, resultado e contas a receber.</summary>
     public async Task<FinancialSummaryDto> GetSummaryAsync(DateOnly? from, DateOnly? to)
     {
-        var artistId = currentUser.EnsureArtist();
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+        Guid? artistId = isAdmin ? null : currentUser.EnsureArtist();
 
         // Contas vencidas em aberto viram OVERDUE (pagamento em atraso — PRD §23).
-        var all = await db.FinancialTransactions
-            .Where(t => t.ArtistId == artistId)
-            .ToListAsync();
+        var allQuery = db.FinancialTransactions.AsQueryable();
+        if (!isAdmin)
+            allQuery = allQuery.Where(t => t.ArtistId == artistId);
+        var all = await allQuery.ToListAsync();
         var changed = false;
         foreach (var tx in all)
         {
@@ -164,10 +196,16 @@ public class FinancialService(IAppDbContext db, ICurrentUserService currentUser,
         var expenseTotal = expenses.Sum(t => t.Amount);
         var expensePaid = expenses.Where(t => t.Status == TransactionStatus.Paid).Sum(t => t.Amount);
 
-        var upcomingShows = await db.Events.AsNoTracking()
-            .CountAsync(e => e.ArtistId == artistId &&
-                             (e.Status == EventStatus.Confirmed || e.Status == EventStatus.Scheduled) &&
-                             e.StartDateTime >= clock.UtcNow);
+        int upcomingShows;
+        if (isAdmin)
+            upcomingShows = await db.Events.AsNoTracking()
+                .CountAsync(e => (e.Status == EventStatus.Confirmed || e.Status == EventStatus.Scheduled) &&
+                                 e.StartDateTime >= clock.UtcNow);
+        else
+            upcomingShows = await db.Events.AsNoTracking()
+                .CountAsync(e => e.ArtistId == artistId &&
+                                 (e.Status == EventStatus.Confirmed || e.Status == EventStatus.Scheduled) &&
+                                 e.StartDateTime >= clock.UtcNow);
 
         return new FinancialSummaryDto(
             from?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc), to?.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc),

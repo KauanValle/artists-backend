@@ -78,7 +78,8 @@ public record CreateTransactionRequestDto(
     decimal Amount,
     DateOnly? DueDate,
     Guid? EventId,
-    string Notes);
+    string Notes,
+    Guid? ArtistId = null);
 
 public record UpdateTransactionRequestDto(
     string Category,

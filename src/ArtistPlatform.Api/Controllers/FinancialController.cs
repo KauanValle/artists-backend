@@ -10,7 +10,7 @@ namespace ArtistPlatform.Api.Controllers;
 /// <summary>Financeiro (PRD §12): receitas e despesas com status de pagamento (RN011/RN012).</summary>
 [ApiController]
 [Route("api/financial")]
-[Authorize(Roles = "Artist")]
+[Authorize(Roles = "Artist,Admin")]
 public class FinancialController(IFinancialService financialService) : ControllerBase
 {
     [HttpGet("transactions")]
