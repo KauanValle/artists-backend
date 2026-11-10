@@ -1534,6 +1534,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.Property<Guid?>("ContractorId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("DeactivationMessage")
+                        .HasColumnType("text");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1543,6 +1546,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeactivated")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("LockoutEnabled")
