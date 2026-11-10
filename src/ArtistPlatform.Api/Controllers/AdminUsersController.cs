@@ -46,8 +46,8 @@ public class AdminUsersController(
 
         // Bookings count
         var bookingCounts = await db.BookingRequests
-            .Where(b => b.ArtistId != null && artistIds.Contains(b.ArtistId.Value))
-            .GroupBy(b => b.ArtistId!.Value)
+            .Where(b => artistIds.Contains(b.ArtistId))
+            .GroupBy(b => b.ArtistId)
             .Select(g => new { ArtistId = g.Key, Total = g.Count() })
             .ToListAsync();
 
