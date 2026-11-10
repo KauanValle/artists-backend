@@ -56,7 +56,7 @@ public class AdminUsersController(
 
         var valorConfirmadosConcluidos = allBookings
             .Where(b => completedOrConfirmedStatuses.Contains(b.Status))
-            .Sum(b => b.Budget);
+            .Sum(b => b.Budget ?? 0m);
 
         var taxaPct = await taxaService.GetPercentualAsync();
         var taxaAdministrativa = valorConfirmadosConcluidos * (taxaPct / 100m);
@@ -65,7 +65,7 @@ public class AdminUsersController(
         var reviews = await db.Reviews
             .Where(r => r.ArtistId == artistId)
             .ToListAsync();
-        var averageRating = reviews.Count > 0 ? reviews.Average(r => r.Rating) : (double?)null;
+        var averageRating = reviews.Count > 0 ? reviews.Average(r => r.OverallRating) : (double?)null;
 
         return Ok(new AdminArtistStatsDto(
             ArtistId: artistId,
@@ -137,7 +137,7 @@ public class AdminUsersController(
             var cBookings = bookings.Where(b => b.ContractorId == c.Id).ToList();
             var confirmedStatuses = new[] { BookingStatus.Confirmed, BookingStatus.Completed };
             var confirmedBookings = cBookings.Where(b => confirmedStatuses.Contains(b.Status)).ToList();
-            var totalSpent = confirmedBookings.Sum(b => b.Budget);
+            var totalSpent = confirmedBookings.Sum(b => b.Budget ?? 0m);
 
             var user = userManager.Users.FirstOrDefault(u => u.ContractorId == c.Id);
 
@@ -183,7 +183,7 @@ public class AdminUsersController(
         var yearContratados = bookings.Count(b => b.CreatedAt >= startOfYear);
 
         var taxaPct = await taxaService.GetPercentualAsync();
-        var totalValue = bookings.Sum(b => b.Budget);
+        var totalValue = bookings.Sum(b => b.Budget ?? 0m);
         var taxasPagas = totalValue * (taxaPct / 100m);
 
         return Ok(new AdminContractorStatsDto(
@@ -250,11 +250,11 @@ public class AdminUsersController(
             if (profile is not null)
                 db.ArtistProfiles.Remove(profile);
 
-            var fees = await db.Fees.Where(f => f.ArtistId == artistId).ToListAsync();
-            db.Fees.RemoveRange(fees);
+            var fees = await db.ArtistFees.Where(f => f.ArtistId == artistId).ToListAsync();
+            db.ArtistFees.RemoveRange(fees);
 
-            var availabilities = await db.Availabilities.Where(a => a.ArtistId == artistId).ToListAsync();
-            db.Availabilities.RemoveRange(availabilities);
+            var availabilities = await db.ArtistAvailabilities.Where(a => a.ArtistId == artistId).ToListAsync();
+            db.ArtistAvailabilities.RemoveRange(availabilities);
 
             var reviews = await db.Reviews.Where(r => r.ArtistId == artistId).ToListAsync();
             db.Reviews.RemoveRange(reviews);
