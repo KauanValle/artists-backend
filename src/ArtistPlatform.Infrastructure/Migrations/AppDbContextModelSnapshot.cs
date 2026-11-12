@@ -1301,13 +1301,7 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("ValorTotal")
-
-                    b.Property<DateTime?>("WithdrawnAt")
-                        .HasColumnType("timestamp with time zone");
                         .HasPrecision(12, 2)
-
-                    b.Property<DateTime?>("WithdrawnAt")
-                        .HasColumnType("timestamp with time zone");
                         .HasColumnType("numeric(12,2)");
 
                     b.Property<DateTime?>("WithdrawnAt")
