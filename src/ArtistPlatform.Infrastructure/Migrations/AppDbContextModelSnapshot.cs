@@ -1312,6 +1312,50 @@ namespace ArtistPlatform.Infrastructure.Migrations
 
                     b.ToTable("ShowPayments", (string)null);
                 });
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.WithdrawalRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("AdminNotes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ArtistId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("TaxaPercentual")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("TaxaValor")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ValorBruto")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArtistId");
+
+                    b.ToTable("WithdrawalRequests", (string)null);
+                });
+
+
 
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.SignatureContract", b =>
                 {
