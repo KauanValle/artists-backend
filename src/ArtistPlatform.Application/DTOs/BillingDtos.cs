@@ -22,7 +22,7 @@ public record InfinityPayLinkResult(string TransactionId, string CheckoutUrl);
 
 // ─────────────────────────── Taxa administrativa da plataforma ───────────────────────────
 
-/// <summary>Taxa administrativa cobrada do contratante sobre o cachê do show (configurável pelo admin).</summary>
+/// <summary>Taxa administrativa descontada do artista no saque (configurável pelo admin).</summary>
 public record TaxaAdministrativaDto(decimal Percentual);
 
 public record SaveTaxaAdministrativaRequest(decimal Percentual);

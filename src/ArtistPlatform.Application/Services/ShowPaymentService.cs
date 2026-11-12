@@ -125,33 +125,25 @@ public class ShowPaymentService(
             .Select(a => a.ArtisticName)
             .FirstAsync();
 
-        // Taxa administrativa da plataforma (configurável pelo admin) — cobrada A CRIO DO show.
-        var taxaPercentual = await taxaAdministrativa.GetPercentualAsync();
-        var taxaValor = Math.Round(valor * taxaPercentual / 100m, 2, MidpointRounding.AwayFromZero);
-        var valorTotal = valor + taxaValor;
-
-        // Persiste antes de chamar o gateway: o webhook_url leva ?ref={paymentId}.
+        // A taxa administrativa agora é descontada do artista no saque, não cobrada do contratante.
+        // Contratante paga apenas o valor do show — sem acréscimos.
         var payment = new ShowPayment
         {
             BookingRequestId = booking.Id,
             ContractorId = booking.ContractorId!.Value,
             Amount = valor,
-            TaxaPercentual = taxaPercentual,
-            TaxaValor = taxaValor,
-            ValorTotal = valorTotal,
+            TaxaPercentual = 0,
+            TaxaValor = 0,
+            ValorTotal = valor,
             Status = ShowPaymentStatus.Pending
         };
         db.ShowPayments.Add(payment);
         await db.SaveChangesAsync();
 
-        // Itens do checkout: o show e (quando houver) a taxa administrativa em linha separada —
-        // transparente para o contratante na hora de pagar.
         var itens = new List<InfinityPayItem>
         {
             new(Convert.ToInt32(valor * 100), $"Show - {artistName}")
         };
-        if (taxaValor > 0)
-            itens.Add(new InfinityPayItem(Convert.ToInt32(taxaValor * 100), $"Taxa administrativa ({taxaPercentual:0.##}%)"));
 
         var link = await infinityPay.CreateLinkAsync(payment.Id, itens);
 
