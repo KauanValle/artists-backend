@@ -70,6 +70,7 @@ public class WithdrawalService(
             where b.ArtistId == artistId
                && (b.Status == BookingStatus.Completed || e.Status == EventStatus.Completed)
                && p.Status == ShowPaymentStatus.Paid
+               && p.WithdrawnAt == null
             select new
             {
                 b.Id,
@@ -180,6 +181,25 @@ public class WithdrawalService(
         request.AdminNotes = notes;
         request.ProcessedAt = DateTime.UtcNow;
         request.UpdatedAt = DateTime.UtcNow;
+
+        // Quando aprovado, marca todos os ShowPayments concluídos do artista como sacados
+        if (approve)
+        {
+            var completedPayments = await (
+                from b in db.BookingRequests
+                join e in db.Events on b.EventId equals e.Id
+                join p in db.ShowPayments on b.Id equals p.BookingRequestId
+                where b.ArtistId == request.ArtistId
+                   && (b.Status == BookingStatus.Completed || e.Status == EventStatus.Completed)
+                   && p.Status == ShowPaymentStatus.Paid
+                   && p.WithdrawnAt == null
+                select p
+            ).ToListAsync();
+
+            foreach (var p in completedPayments)
+                p.WithdrawnAt = DateTime.UtcNow;
+        }
+
         await db.SaveChangesAsync();
 
         // Notifica o artista

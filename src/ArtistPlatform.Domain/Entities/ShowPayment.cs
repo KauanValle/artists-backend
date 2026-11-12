@@ -29,4 +29,7 @@ public class ShowPayment : BaseEntity
 
     /// <summary>Total cobrado do contratante (valor do show + taxa).</summary>
     public decimal ValorTotal { get; set; }
+
+    /// <summary>Data em que o valor deste show foi sacado pelo artista (null = disponível para saque).</summary>
+    public DateTime? WithdrawnAt { get; set; }
 }
