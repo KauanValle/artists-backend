@@ -28,7 +28,8 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' não configurada.");
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString)
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         // ASP.NET Core Identity + JWT + Refresh Tokens (PRD §5)
         services
