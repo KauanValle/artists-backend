@@ -392,37 +392,42 @@ public class BookingService(
             throw new BusinessRuleException("Apenas shows confirmados podem ser concluídos.");
 
         if (booking.EventDate > DateOnly.FromDateTime(agora))
-        {
             throw new BusinessRuleException("O show só pode ser concluído a partir da data do evento.");
-        }
 
+        var ev = await db.Events.FirstAsync(e => e.Id == booking.EventId);
 
-    var ev = await db.Events.FirstAsync(e => e.Id == booking.EventId);
-        
-
+        // Registra a confirmação da parte que está clicando.
         if (currentUser.Role == UserRole.Contractor)
             ev.ContractorCompletedAt ??= agora;
         else
             ev.ArtistCompletedAt ??= agora;
 
+        // Se ambas as partes já confirmaram, finaliza o show.
         await FinalizarConclusaoAsync(booking, ev);
 
-        // Avisa a parte que ainda falta confirmar.
+        // Se ainda falta a outra parte confirmar, muda para AwaitingCompletionAccept e notifica.
         if (booking.Status != BookingStatus.Completed)
         {
+            booking.Status = BookingStatus.AwaitingCompletionAccept;
+            booking.UpdatedAt = agora;
             ev.CompletionToken ??= Guid.NewGuid().ToString("N");
+
             if (ev.ContractorCompletedAt is null)
             {
+                // Artista confirmou, falta o contratante.
                 var artistName = await db.Artists.AsNoTracking()
                     .Where(a => a.Id == booking.ArtistId).Select(a => a.ArtisticName).FirstAsync();
-                booking.Status = BookingStatus.AwaitingCompletionAccept;
                 await NotificarContratanteAsync(booking, "Confirme a conclusão do show",
-                    $"{artistName} indicou que o show de {booking.EventDate:dd/MM/yyyy} aconteceu — confirme a conclusão.", $"/contractor/solicitacoes/{booking.Id}");
+                    $"{artistName} indicou que o show de {booking.EventDate:dd/MM/yyyy} aconteceu — confirme a conclusão.",
+                    $"/contractor/solicitacoes/{booking.Id}");
             }
-            else
-                booking.Status = BookingStatus.AwaitingCompletionAccept;
+            else if (ev.ArtistCompletedAt is null)
+            {
+                // Contratante confirmou, falta o artista.
                 await NotificarArtistaAsync(booking, "O contratante confirmou a conclusão",
-                    $"Confirme a conclusão do show de {booking.EventDate:dd/MM/yyyy} para encerrar a contratação.", $"/shows/{booking.Id}");
+                    $"Confirme a conclusão do show de {booking.EventDate:dd/MM/yyyy} para encerrar a contratação.",
+                    $"/shows/{booking.Id}");
+            }
         }
 
         await db.SaveChangesAsync();
