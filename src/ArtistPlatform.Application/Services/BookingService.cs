@@ -391,9 +391,9 @@ public class BookingService(
              booking.Status != BookingStatus.Confirmed) || booking.EventId is null)
             throw new BusinessRuleException("Apenas shows confirmados podem ser concluídos.");
 
-        if (booking.EventDate != DateOnly.FromDateTime(agora))
+        if (booking.EventDate > DateOnly.FromDateTime(agora))
         {
-            throw new BusinessRuleException("Os shows só podem ser confirmados no dia do evento.");
+            throw new BusinessRuleException("O show só pode ser concluído a partir da data do evento.");
         }
 
 
