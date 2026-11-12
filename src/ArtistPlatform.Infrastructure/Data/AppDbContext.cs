@@ -41,6 +41,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ArtistEpk> ArtistEpks => Set<ArtistEpk>();
     public DbSet<ShowPayment> ShowPayments => Set<ShowPayment>();
     public DbSet<ReviewPhoto> ReviewPhotos => Set<ReviewPhoto>();
+    public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

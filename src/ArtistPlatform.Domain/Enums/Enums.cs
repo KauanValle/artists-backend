@@ -110,7 +110,9 @@ public enum NotificationType
     BookingCancelled = 11,
     ShowCompletionRequested = 12,
     ShowCompleted = 13,
-    ShowPaymentPending = 14
+    ShowPaymentPending = 14,
+    WithdrawalRequested = 15,
+    WithdrawalProcessed = 16
 }
 
 /// <summary>Divisão de cachê percentual ou fixa (PRD §13).</summary>

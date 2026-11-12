@@ -41,4 +41,5 @@ public interface IAppDbContext
     DbSet<ArtistEpk> ArtistEpks { get; }
     DbSet<ShowPayment> ShowPayments { get; }
     DbSet<ReviewPhoto> ReviewPhotos { get; }
+    DbSet<WithdrawalRequest> WithdrawalRequests { get; }
 }
