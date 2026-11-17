@@ -39,6 +39,14 @@ public class IdentityService(
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
         var user = await CreateUserAsync(request.Email, request.Password, request.Name, UserRole.Contractor);
+
+        // Armazena o código de indicação para registrar depois da conclusão do perfil
+        if (!string.IsNullOrWhiteSpace(request.ReferralCode))
+        {
+            user.ReferredByCode = request.ReferralCode.Trim();
+            await userManager.UpdateAsync(user);
+        }
+
         return await GenerateTokensAsync(user);
     }
 
@@ -95,6 +103,13 @@ public class IdentityService(
             ?? throw new NotFoundException("Usuário não encontrado.");
         if (user.ArtistId is not null || user.ContractorId is not null)
             throw new BusinessRuleException("Seu perfil já foi concluído.");
+
+        // Se veio código de indicação na conclusão do perfil, armazena (pode vir do register ou daqui)
+        if (!string.IsNullOrWhiteSpace(request.ReferralCode) && string.IsNullOrWhiteSpace(user.ReferredByCode))
+        {
+            user.ReferredByCode = request.ReferralCode.Trim();
+            await userManager.UpdateAsync(user);
+        }
 
         var tipo = (request.Tipo ?? string.Empty).Trim();
         if (tipo is not ("Artista" or "Contratante"))
@@ -155,6 +170,13 @@ public class IdentityService(
             await db.SaveChangesAsync();
             user.ArtistId = artist.Id;
             await userManager.UpdateAsync(user);
+
+            // Gera código de indicação para o novo artista
+            await GenerateReferralCodeAsync(artist);
+
+            // Registra a indicação se o usuário veio por um link de indicação
+            await ProcessReferralAsync(user);
+
             return await GenerateTokensAsync(user);
         }
 
@@ -175,6 +197,9 @@ public class IdentityService(
         await db.SaveChangesAsync();
         user.ContractorId = contractor.Id;
         await userManager.UpdateAsync(user);
+
+        // Registra a indicação se o usuário veio por um link de indicação
+        await ProcessReferralAsync(user);
 
         await VincularShowsPendentesAsync(contractor.Id, contractor.Phone);
         return await GenerateTokensAsync(user);
@@ -438,5 +463,44 @@ public class IdentityService(
         user.SubscriptionTier = SubscriptionTier.Assinante;
         await userManager.UpdateAsync(user);
         return true;
+    }
+
+    /// <summary>Gera um código de indicação único para o artista recém-criado.</summary>
+    private async Task GenerateReferralCodeAsync(Artist artist)
+    {
+        if (!string.IsNullOrEmpty(artist.ReferralCode)) return;
+
+        string code;
+        do
+        {
+            code = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        } while (await db.Artists.AnyAsync(a => a.ReferralCode == code));
+
+        artist.ReferralCode = code;
+        artist.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>Se o usuário se cadastrou com um código de indicação, registra a indicação.</summary>
+    private async Task ProcessReferralAsync(AppUser user)
+    {
+        if (string.IsNullOrWhiteSpace(user.ReferredByCode)) return;
+
+        var referrerArtist = await db.Artists.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.ReferralCode == user.ReferredByCode);
+
+        if (referrerArtist is null) return;
+
+        // Evita duplicata
+        if (await db.Referrals.AnyAsync(r => r.ReferrerArtistId == referrerArtist.Id && r.ReferredUserId == user.Id))
+            return;
+
+        db.Referrals.Add(new Referral
+        {
+            ReferrerArtistId = referrerArtist.Id,
+            ReferredUserId = user.Id,
+            ReferredUserName = user.DisplayName
+        });
+        await db.SaveChangesAsync();
     }
 }

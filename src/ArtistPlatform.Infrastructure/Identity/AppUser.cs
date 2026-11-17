@@ -25,4 +25,7 @@ public class AppUser : IdentityUser<Guid>
 
     /// <summary>Mensagem personalizada exibida ao usuário quando a conta está desativada.</summary>
     public string? DeactivationMessage { get; set; }
+
+    /// <summary>Código de indicação usado no cadastro (temporário até conclusão do perfil).</summary>
+    public string? ReferredByCode { get; set; }
 }

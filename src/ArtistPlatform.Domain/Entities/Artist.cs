@@ -27,5 +27,9 @@ public class Artist : BaseEntity
     /// </summary>
     public int TravelTimeMinutes { get; set; }
 
+
+    /// <summary>Código único de indicação do artista (gerado automaticamente no cadastro).</summary>
+    public string ReferralCode { get; set; } = string.Empty;
+
     public ArtistCategory Category { get; set; } = default!;
 }

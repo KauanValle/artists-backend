@@ -95,6 +95,11 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("ReferralCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("State")
                         .IsRequired()
                         .HasMaxLength(2)
@@ -117,6 +122,10 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("ReferralCode")
+                        .IsUnique()
+                        .HasFilter("\"ReferralCode\" <> ''");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -1173,6 +1182,39 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.ToTable("RefreshTokens", (string)null);
                 });
 
+
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.Referral", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ReferredUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReferredUserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ReferrerArtistId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReferredUserId");
+
+                    b.HasIndex("ReferrerArtistId");
+
+                    b.ToTable("Referrals", (string)null);
+                });
+
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.Review", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1620,6 +1662,10 @@ namespace ArtistPlatform.Infrastructure.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("ReferredByCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<int>("Role")
                         .HasColumnType("integer");

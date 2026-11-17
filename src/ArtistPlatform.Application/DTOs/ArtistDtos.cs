@@ -12,7 +12,7 @@ public record SalvarTutorialRequest(bool Feito, List<string> Passos);
 public record AuthResponse(string AccessToken, string RefreshToken, DateTime ExpiresAtUtc, UserDto User);
 
 /// <summary>Cadastro unificado: só identidade; perfil (artista/contratante) é completado depois.</summary>
-public record RegisterRequest(string Email, string Password, string Name);
+public record RegisterRequest(string Email, string Password, string Name, string? ReferralCode = null);
 
 public record GoogleLoginRequest(string IdToken);
 
@@ -29,7 +29,8 @@ public record CompleteProfileRequest(
     string? Cep,
     List<string>? Styles,
     List<string>? EventTypes,
-    string? CompanyName);
+    string? CompanyName,
+    string? ReferralCode = null);
 
 public record RegisterArtistRequest(
     string Email,
