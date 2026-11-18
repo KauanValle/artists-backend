@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IReferralService, ReferralService>();
         services.AddScoped<ITicketEventService, TicketEventService>();
         services.AddScoped<ITicketOrderService, TicketOrderService>();
+        services.AddScoped<ITicketManagementService, TicketManagementService>();
         return services;
     }
 }

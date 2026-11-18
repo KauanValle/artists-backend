@@ -457,3 +457,36 @@ public class TicketOrderConfiguration : IEntityTypeConfiguration<TicketOrder>
         builder.HasIndex(o => o.TicketEventId);
     }
 }
+
+public class IssuedTicketConfiguration : IEntityTypeConfiguration<IssuedTicket>
+{
+    public void Configure(EntityTypeBuilder<IssuedTicket> builder)
+    {
+        builder.ToTable("IssuedTickets");
+        builder.Property(t => t.Code).HasMaxLength(16).IsRequired();
+        builder.Property(t => t.CheckedInBy).HasMaxLength(120);
+        builder.HasOne<TicketOrder>()
+            .WithMany()
+            .HasForeignKey(t => t.TicketOrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(t => t.Code).IsUnique();
+        builder.HasIndex(t => new { t.TicketOrderId, t.Sequence }).IsUnique();
+        builder.HasIndex(t => t.TicketEventId);
+    }
+}
+
+public class GateAccessConfiguration : IEntityTypeConfiguration<GateAccess>
+{
+    public void Configure(EntityTypeBuilder<GateAccess> builder)
+    {
+        builder.ToTable("GateAccesses");
+        builder.Property(g => g.Name).HasMaxLength(120).IsRequired();
+        builder.Property(g => g.Code).HasMaxLength(12).IsRequired();
+        builder.HasOne<TicketEvent>()
+            .WithMany()
+            .HasForeignKey(g => g.TicketEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(g => g.Code).IsUnique();
+        builder.HasIndex(g => g.TicketEventId);
+    }
+}

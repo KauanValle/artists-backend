@@ -1487,6 +1487,96 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.ToTable("TicketOrders", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.GateAccess", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TicketEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("TicketEventId");
+
+                    b.ToTable("GateAccesses", (string)null);
+                });
+
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.IssuedTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CheckedInAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CheckedInBy")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid?>("CheckedInGateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EventTicketId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TicketEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TicketOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("TicketEventId");
+
+                    b.HasIndex("TicketOrderId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("IssuedTickets", (string)null);
+                });
+
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.TicketEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2111,6 +2201,24 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.HasOne("ArtistPlatform.Domain.Entities.EventTicket", null)
                         .WithMany()
                         .HasForeignKey("EventTicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.GateAccess", b =>
+                {
+                    b.HasOne("ArtistPlatform.Domain.Entities.TicketEvent", null)
+                        .WithMany()
+                        .HasForeignKey("TicketEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.IssuedTicket", b =>
+                {
+                    b.HasOne("ArtistPlatform.Domain.Entities.TicketOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TicketOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

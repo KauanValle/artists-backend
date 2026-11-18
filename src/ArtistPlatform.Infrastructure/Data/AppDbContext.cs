@@ -46,6 +46,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<TicketEvent> TicketEvents => Set<TicketEvent>();
     public DbSet<EventTicket> EventTickets => Set<EventTicket>();
     public DbSet<TicketOrder> TicketOrders => Set<TicketOrder>();
+    public DbSet<IssuedTicket> IssuedTickets => Set<IssuedTicket>();
+    public DbSet<GateAccess> GateAccesses => Set<GateAccess>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

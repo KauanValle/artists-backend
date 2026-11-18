@@ -242,6 +242,13 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
         var userId = currentUser.EnsureAuthenticated();
         var ev = await db.TicketEvents.FirstOrDefaultAsync(e => e.Id == id && e.OwnerUserId == userId)
             ?? throw new NotFoundException("Evento não encontrado.");
+
+        // Evento com ingressos vendidos (ou pedidos pagos) não pode ser excluído: perderia vendas e check-ins.
+        var hasSales = await db.EventTickets.AnyAsync(t => t.TicketEventId == id && t.SoldQuantity > 0)
+            || await db.TicketOrders.AnyAsync(o => o.TicketEventId == id && o.Status == TicketOrderStatus.Paid);
+        if (hasSales)
+            throw new BusinessRuleException("Este evento já possui ingressos vendidos e não pode ser excluído.");
+
         db.TicketEvents.Remove(ev); // os ingressos saem junto (cascade no banco)
         await db.SaveChangesAsync();
     }

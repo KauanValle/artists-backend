@@ -61,7 +61,11 @@ public record TicketOrderSummaryDto(
     string BuyerName,
     string BuyerEmail,
     string BuyerPhone,
-    string BuyerCpf);
+    string BuyerCpf,
+    /// <summary>Ingressos individuais (código do QR code) — só existem para pedidos pagos.</summary>
+    List<IssuedTicketDto> Tickets);
+
+public record IssuedTicketDto(int Sequence, string Code, DateTime? CheckedInAt);
 
 public interface ITicketOrderService
 {
@@ -241,7 +245,46 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
         await db.EventTickets
             .Where(t => t.Id == order.EventTicketId)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.SoldQuantity, t => t.SoldQuantity + order.Quantity));
+
+        await EnsureIssuedAsync(order);
         return true;
+    }
+
+    /// <summary>
+    /// Emite os ingressos individuais (um por unidade) de um pedido pago, cada um com código aleatório próprio.
+    /// Idempotente: só cria o que falta (também cobre pedidos pagos antes do controle de entrada existir).
+    /// </summary>
+    private async Task EnsureIssuedAsync(TicketOrder order)
+    {
+        if (order.Quantity <= 0) return;
+
+        var existing = await db.IssuedTickets.AsNoTracking()
+            .Where(t => t.TicketOrderId == order.Id)
+            .Select(t => t.Sequence)
+            .ToListAsync();
+        var missing = Enumerable.Range(1, order.Quantity).Where(n => !existing.Contains(n)).ToList();
+        if (missing.Count == 0) return;
+
+        foreach (var n in missing)
+        {
+            db.IssuedTickets.Add(new IssuedTicket
+            {
+                TicketOrderId = order.Id,
+                TicketEventId = order.TicketEventId,
+                EventTicketId = order.EventTicketId,
+                Sequence = n,
+                Code = TicketCodes.Generate(TicketCodes.TicketCodeLength)
+            });
+        }
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Corrida: outra requisição emitiu os mesmos ingressos primeiro — a próxima leitura já os encontra.
+        }
     }
 
     public async Task<List<TicketOrderSummaryDto>> LookupAsync(string cpf, string phone)
@@ -274,6 +317,18 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
                 r.Order.PaidAt = DateTime.UtcNow;
             }
         }
+
+        // Pedidos pagos: garante os ingressos individuais e carrega os códigos para o PDF.
+        var paidOrders = rows.Where(r => r.Order.Status == TicketOrderStatus.Paid).Select(r => r.Order).ToList();
+        foreach (var paidOrder in paidOrders)
+            await EnsureIssuedAsync(paidOrder);
+        var paidIds = paidOrders.Select(o => o.Id).ToList();
+        var issued = paidIds.Count == 0
+            ? new List<IssuedTicket>()
+            : await db.IssuedTickets.AsNoTracking().Where(t => paidIds.Contains(t.TicketOrderId)).OrderBy(t => t.Sequence).ToListAsync();
+        var issuedByOrder = issued
+            .GroupBy(t => t.TicketOrderId)
+            .ToDictionary(g => g.Key, g => g.Select(t => new IssuedTicketDto(t.Sequence, t.Code, t.CheckedInAt)).ToList());
 
         var limit = DateTime.UtcNow - ReservationHold;
         return rows.Select(r =>
@@ -309,7 +364,8 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
                 r.Order.BuyerName,
                 r.Order.BuyerEmail,
                 r.Order.BuyerPhone,
-                r.Order.BuyerCpf);
+                r.Order.BuyerCpf,
+                issuedByOrder.TryGetValue(r.Order.Id, out var tickets) ? tickets : []);
         }).ToList();
     }
 
