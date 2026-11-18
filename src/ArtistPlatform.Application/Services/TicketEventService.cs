@@ -83,6 +83,9 @@ public interface ITicketEventService
     /// <summary>Eventos do usuário logado (mais recentes primeiro).</summary>
     Task<List<TicketEventDto>> ListAsync();
     Task<TicketEventDto> GetAsync(Guid id);
+
+    /// <summary>Página pública do evento (sem login): qualquer pessoa com o link pode ver.</summary>
+    Task<TicketEventDto> GetPublicAsync(Guid id);
     Task<TicketEventDto> CreateAsync(SaveTicketEventRequestDto request);
     Task DeleteAsync(Guid id);
 
@@ -125,6 +128,15 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
         var ev = await db.TicketEvents.AsNoTracking()
             .Include(e => e.Tickets)
             .FirstOrDefaultAsync(e => e.Id == id && e.OwnerUserId == userId)
+            ?? throw new NotFoundException("Evento não encontrado.");
+        return ToDto(ev);
+    }
+
+    public async Task<TicketEventDto> GetPublicAsync(Guid id)
+    {
+        var ev = await db.TicketEvents.AsNoTracking()
+            .Include(e => e.Tickets)
+            .FirstOrDefaultAsync(e => e.Id == id)
             ?? throw new NotFoundException("Evento não encontrado.");
         return ToDto(ev);
     }

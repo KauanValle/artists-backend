@@ -37,3 +37,14 @@ public class TicketEventsController(ITicketEventService ticketEventService) : Co
         return NoContent();
     }
 }
+
+/// <summary>Visualização pública do evento (link compartilhável, sem login).</summary>
+[ApiController]
+[Route("api/public/ticket-events")]
+[AllowAnonymous]
+public class PublicTicketEventsController(ITicketEventService ticketEventService) : ControllerBase
+{
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<TicketEventDto>> Get(Guid id)
+        => Ok(await ticketEventService.GetPublicAsync(id));
+}
