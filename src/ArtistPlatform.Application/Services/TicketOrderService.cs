@@ -48,7 +48,20 @@ public record TicketOrderSummaryDto(
     DateTime CreatedAt,
     DateTime? PaidAt,
     /// <summary>Só vem preenchido enquanto dá para pagar (aguardando pagamento e dentro do prazo).</summary>
-    string? CheckoutUrl);
+    string? CheckoutUrl,
+    // Dados para o PDF do ingresso (o comprador já se identificou com CPF + telefone).
+    string EventEndDate,
+    string EventEndTime,
+    string Street,
+    string Number,
+    string Complement,
+    string Neighborhood,
+    string Cep,
+    string ProducerName,
+    string BuyerName,
+    string BuyerEmail,
+    string BuyerPhone,
+    string BuyerCpf);
 
 public interface ITicketOrderService
 {
@@ -284,7 +297,19 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
                 expired,
                 r.Order.CreatedAt,
                 r.Order.PaidAt,
-                awaiting && !expired ? r.Order.CheckoutUrl : null);
+                awaiting && !expired ? r.Order.CheckoutUrl : null,
+                r.Event.EndDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                r.Event.EndTime.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                r.Event.Street,
+                r.Event.Number,
+                r.Event.Complement ?? string.Empty,
+                r.Event.Neighborhood,
+                r.Event.Cep,
+                r.Event.ProducerName,
+                r.Order.BuyerName,
+                r.Order.BuyerEmail,
+                r.Order.BuyerPhone,
+                r.Order.BuyerCpf);
         }).ToList();
     }
 
