@@ -25,6 +25,14 @@ public class TicketOrder : BaseEntity
     public decimal TotalAmount { get; set; }
 
     public string Status { get; set; } = TicketOrderStatus.AwaitingPayment;
+
+    /// <summary>Id da transação / link no InfinityPay.</summary>
+    public string? TransactionId { get; set; }
+
+    /// <summary>Link de checkout do InfinityPay (reaproveitado se o comprador voltar ao pagamento).</summary>
+    public string? CheckoutUrl { get; set; }
+
+    public DateTime? PaidAt { get; set; }
 }
 
 public static class TicketOrderStatus

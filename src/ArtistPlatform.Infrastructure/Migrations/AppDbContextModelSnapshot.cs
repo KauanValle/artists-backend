@@ -1386,6 +1386,9 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)");
 
+                    b.Property<int>("SoldQuantity")
+                        .HasColumnType("integer");
+
                     b.Property<DateOnly>("SalesEndDate")
                         .HasColumnType("date");
 
@@ -1436,11 +1439,18 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .HasMaxLength(11)
                         .HasColumnType("character varying(11)");
 
+                    b.Property<string>("CheckoutUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("EventTicketId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
@@ -1452,6 +1462,10 @@ namespace ArtistPlatform.Infrastructure.Migrations
 
                     b.Property<Guid>("TicketEventId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("TransactionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(12, 2)

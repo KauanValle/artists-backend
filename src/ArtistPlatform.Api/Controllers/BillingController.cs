@@ -41,6 +41,7 @@ public class BillingController(IBillingService billingService, ICurrentUserServi
 public class WebhooksController(
     IBillingService billingService,
     IShowPaymentService showPaymentService,
+    ITicketOrderService ticketOrderService,
     IOptions<AsaasOptions> asaasOptions) : ControllerBase
 {
     [HttpPost("asaas")]
@@ -73,6 +74,15 @@ public class WebhooksController(
             ? parsed
             : null;
 
-        return Ok(await showPaymentService.HandleWebhookAsync(paymentRef, payload.GetRawText()));
+        var body = payload.GetRawText();
+
+        // O mesmo webhook atende pedidos de ingresso: a referência é o id do pedido.
+        if (paymentRef is not null)
+        {
+            var ticketResult = await ticketOrderService.HandleWebhookAsync(paymentRef.Value, body);
+            if (ticketResult is not null) return Ok(ticketResult);
+        }
+
+        return Ok(await showPaymentService.HandleWebhookAsync(paymentRef, body));
     }
 }

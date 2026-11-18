@@ -16,6 +16,12 @@ public class EventTicket : BaseEntity
     /// <summary>Quantidade de ingressos disponíveis para venda.</summary>
     public int Quantity { get; set; }
 
+    /// <summary>
+    /// Ingressos já vendidos (pedidos pagos). Incrementado de forma atômica quando o pagamento é
+    /// confirmado. Disponíveis = Quantity - SoldQuantity - reservas ativas (pedidos aguardando pagamento).
+    /// </summary>
+    public int SoldQuantity { get; set; }
+
     /// <summary>Valor líquido que o produtor recebe por ingresso.</summary>
     public decimal ReceiveAmount { get; set; }
 

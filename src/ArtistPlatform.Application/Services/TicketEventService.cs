@@ -42,7 +42,13 @@ public record EventTicketDto(
     decimal BuyerPrice,
     string SalesStartDate,
     string SalesEndDate,
-    string Description);
+    string Description,
+    /// <summary>Ingressos vendidos (pagos).</summary>
+    int Sold,
+    /// <summary>Ingressos reservados por pedidos aguardando pagamento.</summary>
+    int Reserved,
+    /// <summary>Ainda à venda: Quantity - Sold - Reserved.</summary>
+    int Available);
 
 public record SaveTicketEventRequestDto(
     string Name,
@@ -119,7 +125,8 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
             .Where(e => e.OwnerUserId == userId)
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync();
-        return events.Select(ToDto).ToList();
+        var pending = await PendingReservationsAsync(events);
+        return events.Select(e => ToDto(e, pending)).ToList();
     }
 
     public async Task<TicketEventDto> GetAsync(Guid id)
@@ -129,7 +136,7 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
             .Include(e => e.Tickets)
             .FirstOrDefaultAsync(e => e.Id == id && e.OwnerUserId == userId)
             ?? throw new NotFoundException("Evento não encontrado.");
-        return ToDto(ev);
+        return ToDto(ev, await PendingReservationsAsync([ev]));
     }
 
     public async Task<TicketEventDto> GetPublicAsync(Guid id)
@@ -138,7 +145,7 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
             .Include(e => e.Tickets)
             .FirstOrDefaultAsync(e => e.Id == id)
             ?? throw new NotFoundException("Evento não encontrado.");
-        return ToDto(ev);
+        return ToDto(ev, await PendingReservationsAsync([ev]));
     }
 
     public async Task<TicketFeeDto> GetFeeAsync()
@@ -330,7 +337,22 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
         return time;
     }
 
-    private static TicketEventDto ToDto(TicketEvent e) => new(
+    /// <summary>Soma das reservas ativas (pedidos aguardando pagamento dentro do prazo) por ingresso.</summary>
+    private async Task<Dictionary<Guid, int>> PendingReservationsAsync(IEnumerable<TicketEvent> events)
+    {
+        var ids = events.SelectMany(e => e.Tickets).Select(t => t.Id).ToList();
+        if (ids.Count == 0) return [];
+        var limit = DateTime.UtcNow - TicketOrderService.ReservationHold;
+        return await db.TicketOrders.AsNoTracking()
+            .Where(o => ids.Contains(o.EventTicketId)
+                && o.Status == TicketOrderStatus.AwaitingPayment
+                && o.CreatedAt > limit)
+            .GroupBy(o => o.EventTicketId)
+            .Select(g => new { g.Key, Quantity = g.Sum(o => o.Quantity) })
+            .ToDictionaryAsync(x => x.Key, x => x.Quantity);
+    }
+
+    private static TicketEventDto ToDto(TicketEvent e, Dictionary<Guid, int>? pending = null) => new(
         e.Id,
         e.Name,
         e.ImageUrl,
@@ -362,6 +384,9 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
                 t.BuyerPrice,
                 t.SalesStartDate.ToString(DateFormat, CultureInfo.InvariantCulture),
                 t.SalesEndDate.ToString(DateFormat, CultureInfo.InvariantCulture),
-                t.Description))
+                t.Description,
+                t.SoldQuantity,
+                pending is not null && pending.TryGetValue(t.Id, out var reserved) ? reserved : 0,
+                Math.Max(0, t.Quantity - t.SoldQuantity - (pending is not null && pending.TryGetValue(t.Id, out var r2) ? r2 : 0))))
             .ToList());
 }

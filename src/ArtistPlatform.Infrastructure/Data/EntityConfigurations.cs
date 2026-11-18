@@ -447,6 +447,8 @@ public class TicketOrderConfiguration : IEntityTypeConfiguration<TicketOrder>
         builder.Property(o => o.UnitPrice).HasPrecision(12, 2);
         builder.Property(o => o.TotalAmount).HasPrecision(12, 2);
         builder.Property(o => o.Status).HasMaxLength(20).IsRequired();
+        builder.Property(o => o.TransactionId).HasMaxLength(100);
+        builder.Property(o => o.CheckoutUrl).HasMaxLength(1000);
         builder.HasOne<EventTicket>()
             .WithMany()
             .HasForeignKey(o => o.EventTicketId)

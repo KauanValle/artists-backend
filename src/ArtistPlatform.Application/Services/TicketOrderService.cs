@@ -1,5 +1,7 @@
 using System.Net.Mail;
 using ArtistPlatform.Application.Common;
+using ArtistPlatform.Application.DTOs;
+using ArtistPlatform.Application.Interfaces;
 using ArtistPlatform.Application.Persistence;
 using ArtistPlatform.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -30,11 +32,26 @@ public interface ITicketOrderService
 {
     /// <summary>Compra pública: reserva os ingressos e registra os dados do comprador.</summary>
     Task<TicketOrderDto> CreateAsync(Guid ticketEventId, CreateTicketOrderRequestDto request);
+
+    /// <summary>Gera (ou reaproveita) o checkout do InfinityPay para o pedido. Ingresso gratuito é confirmado direto.</summary>
+    Task<TicketCheckoutDto> StartCheckoutAsync(Guid ticketEventId, Guid orderId);
+
+    /// <summary>Webhook do InfinityPay. Retorna null se a referência não for de um pedido de ingresso.</summary>
+    Task<WebhookResultDto?> HandleWebhookAsync(Guid orderRef, string body);
 }
 
-public class TicketOrderService(IAppDbContext db) : ITicketOrderService
+/// <summary>Resultado do checkout: URL do InfinityPay, ou Paid = true quando o ingresso é gratuito.</summary>
+public record TicketCheckoutDto(string? CheckoutUrl, bool Paid);
+
+public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay) : ITicketOrderService
 {
     public const int MaxQuantityPerOrder = 10;
+
+    /// <summary>Tempo que um pedido aguardando pagamento mantém os ingressos reservados.</summary>
+    public static readonly TimeSpan ReservationHold = TimeSpan.FromMinutes(30);
+
+    private static readonly string[] ConfirmationMarkers =
+        ["paid", "confirmed", "succeeded", "approved", "captured", "completed", "settled", "authorized"];
 
     public async Task<TicketOrderDto> CreateAsync(Guid ticketEventId, CreateTicketOrderRequestDto request)
     {
@@ -72,10 +89,7 @@ public class TicketOrderService(IAppDbContext db) : ITicketOrderService
         if (today > ticket.SalesEndDate)
             throw new BusinessRuleException("As vendas deste ingresso foram encerradas.");
 
-        var reserved = await db.TicketOrders
-            .Where(o => o.EventTicketId == ticket.Id && o.Status != TicketOrderStatus.Cancelled)
-            .SumAsync(o => (int?)o.Quantity) ?? 0;
-        var available = ticket.Quantity - reserved;
+        var available = ticket.Quantity - ticket.SoldQuantity - await PendingAsync(ticket.Id);
         if (available <= 0)
             throw new BusinessRuleException("Ingressos esgotados.");
         if (request.Quantity > available)
@@ -98,8 +112,110 @@ public class TicketOrderService(IAppDbContext db) : ITicketOrderService
         db.TicketOrders.Add(order);
         await db.SaveChangesAsync();
 
+        // Conferência após gravar: se duas compras simultâneas passaram da checagem acima, o excesso
+        // é detectado aqui e o pedido é desfeito (nunca vende além do total).
+        var sold = await db.EventTickets.AsNoTracking().Where(t => t.Id == ticket.Id).Select(t => t.SoldQuantity).FirstAsync();
+        if (sold + await PendingAsync(ticket.Id) > ticket.Quantity)
+        {
+            db.TicketOrders.Remove(order);
+            await db.SaveChangesAsync();
+            throw new BusinessRuleException("Os ingressos acabaram enquanto você finalizava a compra. Tente novamente.");
+        }
+
         return new TicketOrderDto(order.Id, order.TicketEventId, order.EventTicketId, ticket.Title,
             order.BuyerName, order.BuyerEmail, order.Quantity, order.UnitPrice, order.TotalAmount, order.Status);
+    }
+
+    /// <summary>Quantidade reservada por pedidos aguardando pagamento ainda dentro do prazo.</summary>
+    private async Task<int> PendingAsync(Guid eventTicketId)
+    {
+        var limit = DateTime.UtcNow - ReservationHold;
+        return await db.TicketOrders.AsNoTracking()
+            .Where(o => o.EventTicketId == eventTicketId
+                && o.Status == TicketOrderStatus.AwaitingPayment
+                && o.CreatedAt > limit)
+            .SumAsync(o => (int?)o.Quantity) ?? 0;
+    }
+
+    /// <summary>
+    /// Confirma o pagamento e baixa o estoque. Atômico e idempotente: só o primeiro chamador que muda o
+    /// status de não-pago para pago incrementa SoldQuantity; reenvios do webhook não duplicam a baixa.
+    /// </summary>
+    private async Task<bool> MarkPaidAsync(TicketOrder order)
+    {
+        var now = DateTime.UtcNow;
+        var changed = await db.TicketOrders
+            .Where(o => o.Id == order.Id && o.Status != TicketOrderStatus.Paid)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(o => o.Status, TicketOrderStatus.Paid)
+                .SetProperty(o => o.PaidAt, now)
+                .SetProperty(o => o.UpdatedAt, now));
+        if (changed == 0) return false;
+
+        await db.EventTickets
+            .Where(t => t.Id == order.EventTicketId)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.SoldQuantity, t => t.SoldQuantity + order.Quantity));
+        return true;
+    }
+
+    public async Task<TicketCheckoutDto> StartCheckoutAsync(Guid ticketEventId, Guid orderId)
+    {
+        var order = await db.TicketOrders.FirstOrDefaultAsync(o => o.Id == orderId && o.TicketEventId == ticketEventId)
+            ?? throw new NotFoundException("Pedido não encontrado.");
+
+        if (order.Status == TicketOrderStatus.Paid)
+            return new TicketCheckoutDto(null, true);
+        if (order.Status == TicketOrderStatus.Cancelled)
+            throw new BusinessRuleException("Este pedido foi cancelado.");
+
+        // Ingresso gratuito: sem gateway, o pedido é confirmado na hora.
+        if (order.TotalAmount <= 0)
+        {
+            await MarkPaidAsync(order);
+            return new TicketCheckoutDto(null, true);
+        }
+
+        if (!string.IsNullOrWhiteSpace(order.CheckoutUrl))
+            return new TicketCheckoutDto(order.CheckoutUrl, false);
+
+        if (order.CreatedAt < DateTime.UtcNow - ReservationHold)
+            throw new BusinessRuleException("A reserva deste pedido expirou. Faça uma nova compra.");
+
+        var info = await (
+            from t in db.EventTickets.AsNoTracking()
+            join e in db.TicketEvents.AsNoTracking() on t.TicketEventId equals e.Id
+            where t.Id == order.EventTicketId
+            select new { t.Title, EventName = e.Name }).FirstAsync();
+
+        var description = $"{order.Quantity}x {info.Title} - {info.EventName}";
+        if (description.Length > 200) description = description[..200];
+
+        var item = new InfinityPayItem(Convert.ToInt32(Math.Round(order.TotalAmount * 100, MidpointRounding.AwayFromZero)), description);
+        var link = await infinityPay.CreateLinkAsync(order.Id, [item]);
+
+        order.TransactionId = link.TransactionId;
+        order.CheckoutUrl = link.CheckoutUrl;
+        order.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        return new TicketCheckoutDto(link.CheckoutUrl, false);
+    }
+
+    public async Task<WebhookResultDto?> HandleWebhookAsync(Guid orderRef, string body)
+    {
+        var order = await db.TicketOrders.FirstOrDefaultAsync(o => o.Id == orderRef);
+        if (order is null) return null;
+
+        if (order.Status == TicketOrderStatus.Paid)
+            return new WebhookResultDto(true, "Pedido já confirmado anteriormente.");
+
+        var content = body.ToLowerInvariant();
+        if (!ConfirmationMarkers.Any(m => content.Contains(m)))
+            return new WebhookResultDto(false, "Evento não indica pagamento confirmado — ignorado.");
+
+        // Pagamento confirmado vale mesmo que a reserva tenha expirado (o dinheiro já entrou).
+        await MarkPaidAsync(order);
+        return new WebhookResultDto(true, "Pagamento do ingresso confirmado.");
     }
 
     private static string Normalize(string? s) =>
