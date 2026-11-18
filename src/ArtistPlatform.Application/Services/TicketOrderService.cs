@@ -92,7 +92,7 @@ public interface ITicketOrderService
 public record TicketCheckoutDto(string? CheckoutUrl, bool Paid);
 
 /// <summary>Resultado da verificação na volta do checkout: Found = o retorno é de um pedido de ingresso.</summary>
-public record TicketReturnDto(bool Found, bool Paid);
+public record TicketReturnDto(bool Found, bool Paid, TicketOrderSummaryDto? OrderSummary = null);
 
 public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay) : ITicketOrderService
 {
@@ -182,7 +182,8 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
         if (!Guid.TryParse(orderNsu, out var orderId)) return new TicketReturnDto(false, false);
         var order = await db.TicketOrders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId);
         if (order is null) return new TicketReturnDto(false, false);
-        if (order.Status == TicketOrderStatus.Paid) return new TicketReturnDto(true, true);
+        if (order.Status == TicketOrderStatus.Paid)
+            return new TicketReturnDto(true, true, await BuildOrderSummaryAsync(order));
         if (order.Status == TicketOrderStatus.Cancelled) return new TicketReturnDto(true, false);
 
         bool paid;
@@ -195,7 +196,13 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
             return new TicketReturnDto(true, false);
         }
         if (paid) await MarkPaidAsync(order);
-        return new TicketReturnDto(true, paid);
+        if (paid)
+        {
+            // Recarrega o pedido para pegar PaidAt atualizado
+            order = (await db.TicketOrders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId))!;
+            return new TicketReturnDto(true, true, await BuildOrderSummaryAsync(order));
+        }
+        return new TicketReturnDto(true, false);
     }
 
     private async Task<bool> TryConfirmWithGatewayAsync(TicketOrder order)
@@ -225,6 +232,59 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
                 && o.Status == TicketOrderStatus.AwaitingPayment
                 && o.CreatedAt > limit)
             .SumAsync(o => (int?)o.Quantity) ?? 0;
+    }
+
+    /// <summary>Monta o TicketOrderSummaryDto para um único pedido (usado no retorno do verify).</summary>
+    private async Task<TicketOrderSummaryDto> BuildOrderSummaryAsync(TicketOrder order)
+    {
+        var row = await (
+            from t in db.EventTickets.AsNoTracking()
+            join e in db.TicketEvents.AsNoTracking() on t.TicketEventId equals e.Id
+            where t.Id == order.EventTicketId
+            select new { TicketTitle = t.Title, Event = e }).FirstAsync();
+
+        await EnsureIssuedAsync(order);
+        var tickets = await db.IssuedTickets.AsNoTracking()
+            .Where(i => i.TicketOrderId == order.Id)
+            .OrderBy(i => i.Sequence)
+            .Select(i => new IssuedTicketDto(i.Sequence, i.Code, i.CheckedInAt))
+            .ToListAsync();
+
+        var awaiting = order.Status == TicketOrderStatus.AwaitingPayment;
+        var limit = DateTime.UtcNow - ReservationHold;
+        var expired = awaiting && order.CreatedAt <= limit;
+
+        return new TicketOrderSummaryDto(
+            order.Id,
+            row.Event.Id,
+            row.Event.Name,
+            row.Event.ImageUrl,
+            row.Event.StartDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            row.Event.StartTime.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+            row.Event.VenueName,
+            row.Event.City,
+            row.Event.State,
+            row.TicketTitle,
+            order.Quantity,
+            order.TotalAmount,
+            order.Status,
+            expired,
+            order.CreatedAt,
+            order.PaidAt,
+            awaiting && !expired ? order.CheckoutUrl : null,
+            row.Event.EndDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            row.Event.EndTime.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+            row.Event.Street,
+            row.Event.Number,
+            row.Event.Complement ?? string.Empty,
+            row.Event.Neighborhood,
+            row.Event.Cep,
+            row.Event.ProducerName,
+            order.BuyerName,
+            order.BuyerEmail,
+            order.BuyerPhone,
+            order.BuyerCpf,
+            tickets);
     }
 
     /// <summary>
