@@ -7,6 +7,7 @@ using ArtistPlatform.Infrastructure.Auth;
 using ArtistPlatform.Infrastructure.Data;
 using ArtistPlatform.Infrastructure.Identity;
 using ArtistPlatform.Infrastructure.Services;
+using ArtistPlatform.Infrastructure.Email;
 using ArtistPlatform.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -108,6 +109,11 @@ public static class DependencyInjection
         services.AddScoped<ArtistPlatform.Application.Interfaces.IPushNotificationSender, PushNotificationSender>();
         services.AddScoped<ArtistPlatform.Application.Interfaces.IPushSubscriptionService, PushSubscriptionService>();
         services.AddScoped<IBillingService, BillingService>();
+
+        // Email (Resend) — para trocar de provedor, substitua ResendEmailService
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
+        services.AddSingleton<IEmailTemplateService, EmailTemplateService>();
+        services.AddHttpClient<IEmailService, ResendEmailService>();
 
         return services;
     }
