@@ -28,8 +28,33 @@ public record TicketOrderDto(
     decimal TotalAmount,
     string Status);
 
+/// <summary>Pedido na consulta "acompanhar pedidos" (CPF + telefone).</summary>
+public record TicketOrderSummaryDto(
+    Guid Id,
+    Guid TicketEventId,
+    string EventName,
+    string EventImageUrl,
+    string EventStartDate,
+    string EventStartTime,
+    string Venue,
+    string City,
+    string State,
+    string TicketTitle,
+    int Quantity,
+    decimal TotalAmount,
+    string Status,
+    /// <summary>Pedido aguardando pagamento cuja reserva já venceu.</summary>
+    bool Expired,
+    DateTime CreatedAt,
+    DateTime? PaidAt,
+    /// <summary>Só vem preenchido enquanto dá para pagar (aguardando pagamento e dentro do prazo).</summary>
+    string? CheckoutUrl);
+
 public interface ITicketOrderService
 {
+    /// <summary>Pedidos do comprador identificado por CPF + telefone (mais recentes primeiro).</summary>
+    Task<List<TicketOrderSummaryDto>> LookupAsync(string cpf, string phone);
+
     /// <summary>Compra pública: reserva os ingressos e registra os dados do comprador.</summary>
     Task<TicketOrderDto> CreateAsync(Guid ticketEventId, CreateTicketOrderRequestDto request);
 
@@ -156,6 +181,51 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
             .Where(t => t.Id == order.EventTicketId)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.SoldQuantity, t => t.SoldQuantity + order.Quantity));
         return true;
+    }
+
+    public async Task<List<TicketOrderSummaryDto>> LookupAsync(string cpf, string phone)
+    {
+        var cpfDigits = Digits(cpf);
+        if (!IsValidCpf(cpfDigits))
+            throw new ValidationException("CPF inválido.");
+
+        var phoneDigits = Digits(phone);
+        if (phoneDigits.StartsWith("55") && phoneDigits.Length > 11) phoneDigits = phoneDigits[2..];
+        if (phoneDigits.Length is not (10 or 11))
+            throw new ValidationException("Telefone inválido. Informe o DDD e o número.");
+
+        var rows = await (
+            from o in db.TicketOrders.AsNoTracking()
+            join t in db.EventTickets.AsNoTracking() on o.EventTicketId equals t.Id
+            join e in db.TicketEvents.AsNoTracking() on o.TicketEventId equals e.Id
+            where o.BuyerCpf == cpfDigits && o.BuyerPhone == phoneDigits
+            orderby o.CreatedAt descending
+            select new { Order = o, TicketTitle = t.Title, Event = e }).Take(100).ToListAsync();
+
+        var limit = DateTime.UtcNow - ReservationHold;
+        return rows.Select(r =>
+        {
+            var awaiting = r.Order.Status == TicketOrderStatus.AwaitingPayment;
+            var expired = awaiting && r.Order.CreatedAt <= limit;
+            return new TicketOrderSummaryDto(
+                r.Order.Id,
+                r.Event.Id,
+                r.Event.Name,
+                r.Event.ImageUrl,
+                r.Event.StartDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                r.Event.StartTime.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                r.Event.VenueName,
+                r.Event.City,
+                r.Event.State,
+                r.TicketTitle,
+                r.Order.Quantity,
+                r.Order.TotalAmount,
+                r.Order.Status,
+                expired,
+                r.Order.CreatedAt,
+                r.Order.PaidAt,
+                awaiting && !expired ? r.Order.CheckoutUrl : null);
+        }).ToList();
     }
 
     public async Task<TicketCheckoutDto> StartCheckoutAsync(Guid ticketEventId, Guid orderId)
