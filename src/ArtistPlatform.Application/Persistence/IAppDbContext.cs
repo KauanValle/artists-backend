@@ -43,4 +43,5 @@ public interface IAppDbContext
     DbSet<ReviewPhoto> ReviewPhotos { get; }
     DbSet<WithdrawalRequest> WithdrawalRequests { get; }
     DbSet<Referral> Referrals { get; }
+    DbSet<TicketEvent> TicketEvents { get; }
 }

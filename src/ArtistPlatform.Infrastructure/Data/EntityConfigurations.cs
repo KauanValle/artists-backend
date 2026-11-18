@@ -393,3 +393,26 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.HasIndex(t => t.UserId);
     }
 }
+
+public class TicketEventConfiguration : IEntityTypeConfiguration<TicketEvent>
+{
+    public void Configure(EntityTypeBuilder<TicketEvent> builder)
+    {
+        builder.ToTable("TicketEvents");
+        builder.Property(e => e.Name).HasMaxLength(200).IsRequired();
+        builder.Property(e => e.ImageUrl).HasMaxLength(500).IsRequired();
+        builder.Property(e => e.Category).HasMaxLength(60).IsRequired();
+        builder.Property(e => e.Description).HasMaxLength(2000);
+        builder.Property(e => e.VenueName).HasMaxLength(200).IsRequired();
+        builder.Property(e => e.Cep).HasMaxLength(9).IsRequired();
+        builder.Property(e => e.Street).HasMaxLength(200).IsRequired();
+        builder.Property(e => e.Number).HasMaxLength(20).IsRequired();
+        builder.Property(e => e.Complement).HasMaxLength(100);
+        builder.Property(e => e.Neighborhood).HasMaxLength(120).IsRequired();
+        builder.Property(e => e.City).HasMaxLength(120).IsRequired();
+        builder.Property(e => e.State).HasMaxLength(2).IsRequired();
+        builder.Property(e => e.ProducerName).HasMaxLength(200).IsRequired();
+        builder.Property(e => e.ProducerDescription).HasMaxLength(1000);
+        builder.HasIndex(e => new { e.OwnerUserId, e.StartDate });
+    }
+}

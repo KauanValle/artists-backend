@@ -43,6 +43,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ReviewPhoto> ReviewPhotos => Set<ReviewPhoto>();
     public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
     public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<TicketEvent> TicketEvents => Set<TicketEvent>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
