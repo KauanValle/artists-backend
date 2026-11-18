@@ -48,4 +48,5 @@ public interface IAppDbContext
     DbSet<TicketOrder> TicketOrders { get; }
     DbSet<IssuedTicket> IssuedTickets { get; }
     DbSet<GateAccess> GateAccesses { get; }
+    DbSet<Campaign> Campaigns { get; }
 }
