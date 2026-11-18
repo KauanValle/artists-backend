@@ -11,6 +11,10 @@ namespace ArtistPlatform.Api.Controllers;
 [Authorize(Roles = "Admin")]
 public class AdminCampaignsController(IAppDbContext db) : ControllerBase
 {
+    /// <summary>Garante que DateTime nullable seja UTC (Npgsql exige para timestamptz).</summary>
+    private static DateTime? ToUtc(DateTime? dt) =>
+        dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
+
     public record CampaignDto(
         Guid Id,
         string Slug,
@@ -95,8 +99,8 @@ public class AdminCampaignsController(IAppDbContext db) : ControllerBase
             Description = req.Description,
             Rules = req.Rules,
             Type = req.Type,
-            StartDate = req.StartDate,
-            EndDate = req.EndDate,
+            StartDate = ToUtc(req.StartDate),
+            EndDate = ToUtc(req.EndDate),
             GoalDescription = req.GoalDescription,
             GoalTarget = req.GoalTarget,
             GoalCurrent = 0,
@@ -132,8 +136,8 @@ public class AdminCampaignsController(IAppDbContext db) : ControllerBase
         if (req.Description is not null) campaign.Description = req.Description;
         if (req.Rules is not null) campaign.Rules = req.Rules;
         if (req.Type is not null) campaign.Type = req.Type.Value;
-        if (req.StartDate is not null) campaign.StartDate = req.StartDate;
-        if (req.EndDate is not null) campaign.EndDate = req.EndDate;
+        if (req.StartDate is not null) campaign.StartDate = ToUtc(req.StartDate);
+        if (req.EndDate is not null) campaign.EndDate = ToUtc(req.EndDate);
         if (req.GoalDescription is not null) campaign.GoalDescription = req.GoalDescription;
         if (req.GoalTarget is not null) campaign.GoalTarget = req.GoalTarget;
         if (req.GoalCurrent is not null) campaign.GoalCurrent = req.GoalCurrent;
