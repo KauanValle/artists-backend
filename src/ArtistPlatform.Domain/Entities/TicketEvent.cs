@@ -42,4 +42,7 @@ public class TicketEvent : BaseEntity
     // Produtor
     public string ProducerName { get; set; } = default!;
     public string ProducerDescription { get; set; } = string.Empty;
+
+    /// <summary>Ingressos à venda deste evento.</summary>
+    public List<EventTicket> Tickets { get; set; } = [];
 }

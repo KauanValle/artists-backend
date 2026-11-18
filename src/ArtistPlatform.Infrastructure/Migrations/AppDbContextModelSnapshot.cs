@@ -1357,6 +1357,59 @@ namespace ArtistPlatform.Infrastructure.Migrations
 
                     b.ToTable("ShowPayments", (string)null);
                 });
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.EventTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BuyerPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("FeePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("ReceiveAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateOnly>("SalesEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("SalesStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("TicketEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TicketEventId");
+
+                    b.ToTable("EventTickets", (string)null);
+                });
+
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.TicketEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1967,6 +2020,15 @@ namespace ArtistPlatform.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.EventTicket", b =>
+                {
+                    b.HasOne("ArtistPlatform.Domain.Entities.TicketEvent", null)
+                        .WithMany("Tickets")
+                        .HasForeignKey("TicketEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -2026,6 +2088,11 @@ namespace ArtistPlatform.Infrastructure.Migrations
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.Proposal", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.TicketEvent", b =>
+                {
+                    b.Navigation("Tickets");
                 });
 #pragma warning restore 612, 618
         }

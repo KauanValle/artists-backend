@@ -416,3 +416,21 @@ public class TicketEventConfiguration : IEntityTypeConfiguration<TicketEvent>
         builder.HasIndex(e => new { e.OwnerUserId, e.StartDate });
     }
 }
+
+public class EventTicketConfiguration : IEntityTypeConfiguration<EventTicket>
+{
+    public void Configure(EntityTypeBuilder<EventTicket> builder)
+    {
+        builder.ToTable("EventTickets");
+        builder.Property(t => t.Title).HasMaxLength(120).IsRequired();
+        builder.Property(t => t.ReceiveAmount).HasPrecision(12, 2);
+        builder.Property(t => t.FeePercent).HasPrecision(5, 2);
+        builder.Property(t => t.BuyerPrice).HasPrecision(12, 2);
+        builder.Property(t => t.Description).HasMaxLength(1000);
+        builder.HasOne<TicketEvent>()
+            .WithMany(e => e.Tickets)
+            .HasForeignKey(t => t.TicketEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(t => t.TicketEventId);
+    }
+}

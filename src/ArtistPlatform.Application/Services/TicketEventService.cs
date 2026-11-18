@@ -30,7 +30,19 @@ public record TicketEventDto(
     string State,
     string ProducerName,
     string ProducerDescription,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    List<EventTicketDto> Tickets);
+
+public record EventTicketDto(
+    Guid Id,
+    string Title,
+    int Quantity,
+    decimal ReceiveAmount,
+    decimal FeePercent,
+    decimal BuyerPrice,
+    string SalesStartDate,
+    string SalesEndDate,
+    string Description);
 
 public record SaveTicketEventRequestDto(
     string Name,
@@ -50,7 +62,19 @@ public record SaveTicketEventRequestDto(
     string City,
     string State,
     string ProducerName,
-    string ProducerDescription);
+    string ProducerDescription,
+    List<SaveEventTicketRequestDto>? Tickets);
+
+/// <summary>O valor pago pelo comprador NÃO vem do cliente: é calculado aqui com a taxa vigente.</summary>
+public record SaveEventTicketRequestDto(
+    string Title,
+    int Quantity,
+    decimal ReceiveAmount,
+    string SalesStartDate,
+    string SalesEndDate,
+    string? Description);
+
+public record TicketFeeDto(decimal FeePercent);
 
 // ─────────────────────────── Interface ───────────────────────────
 
@@ -61,12 +85,26 @@ public interface ITicketEventService
     Task<TicketEventDto> GetAsync(Guid id);
     Task<TicketEventDto> CreateAsync(SaveTicketEventRequestDto request);
     Task DeleteAsync(Guid id);
+
+    /// <summary>Percentual da taxa administrativa aplicada sobre o valor a receber dos ingressos.</summary>
+    Task<TicketFeeDto> GetFeeAsync();
 }
 
 // ─────────────────────────── Implementação ───────────────────────────
 
 public class TicketEventService(IAppDbContext db, ICurrentUserService currentUser) : ITicketEventService
 {
+    /// <summary>Chave em AppSettings — o painel admin passará a editar este valor.</summary>
+    public const string FeeSettingsKey = "ingressos:taxa";
+
+    /// <summary>Taxa usada enquanto o admin não configurar (mesmo padrão da taxa administrativa dos shows).</summary>
+    public const decimal DefaultFeePercent = 5m;
+
+    private const decimal MaxFeePercent = 50m;
+    private const int MaxTicketsPerEvent = 20;
+    private const int MaxTicketQuantity = 1_000_000;
+    private const decimal MaxReceiveAmount = 100_000m;
+
     private const string DateFormat = "yyyy-MM-dd";
     private static readonly string[] TimeFormats = ["HH:mm", "HH:mm:ss"];
 
@@ -74,6 +112,7 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
     {
         var userId = currentUser.EnsureAuthenticated();
         var events = await db.TicketEvents.AsNoTracking()
+            .Include(e => e.Tickets)
             .Where(e => e.OwnerUserId == userId)
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync();
@@ -84,9 +123,16 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
     {
         var userId = currentUser.EnsureAuthenticated();
         var ev = await db.TicketEvents.AsNoTracking()
+            .Include(e => e.Tickets)
             .FirstOrDefaultAsync(e => e.Id == id && e.OwnerUserId == userId)
             ?? throw new NotFoundException("Evento não encontrado.");
         return ToDto(ev);
+    }
+
+    public async Task<TicketFeeDto> GetFeeAsync()
+    {
+        currentUser.EnsureAuthenticated();
+        return new TicketFeeDto(await GetFeePercentAsync());
     }
 
     public async Task<TicketEventDto> CreateAsync(SaveTicketEventRequestDto request)
@@ -156,6 +202,17 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
             ProducerDescription = producerDescription
         };
 
+        var tickets = request.Tickets ?? [];
+        if (tickets.Count > MaxTicketsPerEvent)
+            throw new ValidationException($"Um evento pode ter no máximo {MaxTicketsPerEvent} tipos de ingresso.");
+
+        if (tickets.Count > 0)
+        {
+            var feePercent = await GetFeePercentAsync();
+            foreach (var t in tickets)
+                ev.Tickets.Add(BuildTicket(t, feePercent, today, endDate));
+        }
+
         db.TicketEvents.Add(ev);
         await db.SaveChangesAsync();
         return ToDto(ev);
@@ -166,8 +223,64 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
         var userId = currentUser.EnsureAuthenticated();
         var ev = await db.TicketEvents.FirstOrDefaultAsync(e => e.Id == id && e.OwnerUserId == userId)
             ?? throw new NotFoundException("Evento não encontrado.");
-        db.TicketEvents.Remove(ev);
+        db.TicketEvents.Remove(ev); // os ingressos saem junto (cascade no banco)
         await db.SaveChangesAsync();
+    }
+
+    // ── ingressos ──
+
+    private static EventTicket BuildTicket(SaveEventTicketRequestDto t, decimal feePercent, DateOnly today, DateOnly eventEndDate)
+    {
+        var title = Required(t.Title, "o título do ingresso", 2, 120);
+        var description = (t.Description ?? string.Empty).Trim();
+        if (description.Length > 1000)
+            throw new ValidationException("A descrição do ingresso deve ter no máximo 1000 caracteres.");
+
+        if (t.Quantity < 1 || t.Quantity > MaxTicketQuantity)
+            throw new ValidationException($"A quantidade do ingresso \"{title}\" deve estar entre 1 e {MaxTicketQuantity:N0}.");
+
+        if (t.ReceiveAmount < 0 || t.ReceiveAmount > MaxReceiveAmount)
+            throw new ValidationException($"O valor a receber do ingresso \"{title}\" é inválido.");
+
+        var salesStart = ParseDate(t.SalesStartDate, $"de início das vendas do ingresso \"{title}\"");
+        var salesEnd = ParseDate(t.SalesEndDate, $"de fim das vendas do ingresso \"{title}\"");
+        if (salesStart < today)
+            throw new ValidationException($"O início das vendas do ingresso \"{title}\" não pode estar no passado.");
+        if (salesEnd < salesStart)
+            throw new ValidationException($"O fim das vendas do ingresso \"{title}\" deve ser igual ou depois do início.");
+        if (salesEnd > eventEndDate)
+            throw new ValidationException($"As vendas do ingresso \"{title}\" não podem terminar depois do término do evento.");
+
+        var receive = Math.Round(t.ReceiveAmount, 2, MidpointRounding.AwayFromZero);
+        return new EventTicket
+        {
+            Title = title,
+            Quantity = t.Quantity,
+            ReceiveAmount = receive,
+            FeePercent = feePercent,
+            BuyerPrice = CalculateBuyerPrice(receive, feePercent),
+            SalesStartDate = salesStart,
+            SalesEndDate = salesEnd,
+            Description = description
+        };
+    }
+
+    /// <summary>Valor pago pelo comprador = valor a receber + taxa administrativa.</summary>
+    public static decimal CalculateBuyerPrice(decimal receiveAmount, decimal feePercent)
+        => Math.Round(receiveAmount * (1m + feePercent / 100m), 2, MidpointRounding.AwayFromZero);
+
+    private async Task<decimal> GetFeePercentAsync()
+    {
+        var value = await db.Settings.AsNoTracking()
+            .Where(s => s.Key == FeeSettingsKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync();
+
+        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var fee)
+            || decimal.TryParse(value, out fee))
+            return Math.Clamp(fee, 0m, MaxFeePercent);
+
+        return DefaultFeePercent;
     }
 
     // ── helpers ──
@@ -225,5 +338,18 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
         e.State,
         e.ProducerName,
         e.ProducerDescription,
-        e.CreatedAt);
+        e.CreatedAt,
+        e.Tickets
+            .OrderBy(t => t.CreatedAt)
+            .Select(t => new EventTicketDto(
+                t.Id,
+                t.Title,
+                t.Quantity,
+                t.ReceiveAmount,
+                t.FeePercent,
+                t.BuyerPrice,
+                t.SalesStartDate.ToString(DateFormat, CultureInfo.InvariantCulture),
+                t.SalesEndDate.ToString(DateFormat, CultureInfo.InvariantCulture),
+                t.Description))
+            .ToList());
 }

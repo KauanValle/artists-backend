@@ -17,6 +17,11 @@ public class TicketEventsController(ITicketEventService ticketEventService) : Co
     public async Task<ActionResult<List<TicketEventDto>>> List()
         => Ok(await ticketEventService.ListAsync());
 
+    /// <summary>Taxa administrativa (%) aplicada sobre o valor a receber dos ingressos.</summary>
+    [HttpGet("fee")]
+    public async Task<ActionResult<TicketFeeDto>> GetFee()
+        => Ok(await ticketEventService.GetFeeAsync());
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<TicketEventDto>> Get(Guid id)
         => Ok(await ticketEventService.GetAsync(id));
