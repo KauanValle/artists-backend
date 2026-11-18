@@ -1410,6 +1410,69 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.ToTable("EventTickets", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.TicketOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BuyerCpf")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
+                    b.Property<string>("BuyerEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BuyerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BuyerPhone")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EventTicketId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TicketEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventTicketId");
+
+                    b.HasIndex("TicketEventId");
+
+                    b.ToTable("TicketOrders", (string)null);
+                });
+
             modelBuilder.Entity("ArtistPlatform.Domain.Entities.TicketEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2025,6 +2088,15 @@ namespace ArtistPlatform.Infrastructure.Migrations
                     b.HasOne("ArtistPlatform.Domain.Entities.TicketEvent", null)
                         .WithMany("Tickets")
                         .HasForeignKey("TicketEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArtistPlatform.Domain.Entities.TicketOrder", b =>
+                {
+                    b.HasOne("ArtistPlatform.Domain.Entities.EventTicket", null)
+                        .WithMany()
+                        .HasForeignKey("EventTicketId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -45,4 +45,5 @@ public interface IAppDbContext
     DbSet<Referral> Referrals { get; }
     DbSet<TicketEvent> TicketEvents { get; }
     DbSet<EventTicket> EventTickets { get; }
+    DbSet<TicketOrder> TicketOrders { get; }
 }

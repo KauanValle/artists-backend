@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IWithdrawalService, WithdrawalService>();
         services.AddScoped<IReferralService, ReferralService>();
         services.AddScoped<ITicketEventService, TicketEventService>();
+        services.AddScoped<ITicketOrderService, TicketOrderService>();
         return services;
     }
 }

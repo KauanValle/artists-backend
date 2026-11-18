@@ -434,3 +434,24 @@ public class EventTicketConfiguration : IEntityTypeConfiguration<EventTicket>
         builder.HasIndex(t => t.TicketEventId);
     }
 }
+
+public class TicketOrderConfiguration : IEntityTypeConfiguration<TicketOrder>
+{
+    public void Configure(EntityTypeBuilder<TicketOrder> builder)
+    {
+        builder.ToTable("TicketOrders");
+        builder.Property(o => o.BuyerName).HasMaxLength(200).IsRequired();
+        builder.Property(o => o.BuyerPhone).HasMaxLength(11).IsRequired();
+        builder.Property(o => o.BuyerEmail).HasMaxLength(200).IsRequired();
+        builder.Property(o => o.BuyerCpf).HasMaxLength(11).IsRequired();
+        builder.Property(o => o.UnitPrice).HasPrecision(12, 2);
+        builder.Property(o => o.TotalAmount).HasPrecision(12, 2);
+        builder.Property(o => o.Status).HasMaxLength(20).IsRequired();
+        builder.HasOne<EventTicket>()
+            .WithMany()
+            .HasForeignKey(o => o.EventTicketId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(o => o.EventTicketId);
+        builder.HasIndex(o => o.TicketEventId);
+    }
+}
