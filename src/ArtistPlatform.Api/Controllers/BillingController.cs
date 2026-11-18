@@ -6,6 +6,7 @@ using ArtistPlatform.Application.Services;
 using ArtistPlatform.Infrastructure.Asaas;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace ArtistPlatform.Api.Controllers;
@@ -42,7 +43,8 @@ public class WebhooksController(
     IBillingService billingService,
     IShowPaymentService showPaymentService,
     ITicketOrderService ticketOrderService,
-    IOptions<AsaasOptions> asaasOptions) : ControllerBase
+    IOptions<AsaasOptions> asaasOptions,
+    ILogger<WebhooksController> logger) : ControllerBase
 {
     [HttpPost("asaas")]
     [AllowAnonymous]
@@ -75,6 +77,17 @@ public class WebhooksController(
             : null;
 
         var body = payload.GetRawText();
+
+        // Plano B: o payload do InfinityPay traz order_nsu (enviado na criação do link).
+        if (paymentRef is null
+            && payload.ValueKind == JsonValueKind.Object
+            && payload.TryGetProperty("order_nsu", out var nsu)
+            && nsu.ValueKind == JsonValueKind.String
+            && Guid.TryParse(nsu.GetString(), out var nsuRef))
+            paymentRef = nsuRef;
+
+        logger.LogInformation("Webhook InfinityPay recebido. ref={Ref} corpo={Body}", paymentRef,
+            body.Length > 1500 ? body[..1500] : body);
 
         // O mesmo webhook atende pedidos de ingresso: a referência é o id do pedido.
         if (paymentRef is not null)

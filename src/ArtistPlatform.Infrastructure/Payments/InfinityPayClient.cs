@@ -36,6 +36,9 @@ public class InfinityPayClient(HttpClient http, IOptions<InfinityPayOptions> opt
             handle = Options.Handle,
             redirect_url = Options.RedirectUrl,
             webhook_url = webhookUrl,
+            // Identificador do pedido no nosso sistema: volta no webhook (order_nsu) e permite achar o pagamento
+            // mesmo se o ?ref= da URL se perder.
+            order_nsu = paymentRef.ToString(),
             items = items.Select(item => new
             {
                 quantity = 1,
@@ -67,6 +70,34 @@ public class InfinityPayClient(HttpClient http, IOptions<InfinityPayOptions> opt
         var transactionId = GetString(root, "id") ?? GetString(root, "uuid") ?? string.Empty;
 
         return new InfinityPayLinkResult(transactionId, url);
+    }
+
+    public async Task<bool> IsPaidAsync(string orderNsu, string? transactionNsu = null, string? slug = null)
+    {
+        if (string.IsNullOrWhiteSpace(Options.Handle)) return false;
+
+        var payload = new Dictionary<string, string>
+        {
+            ["handle"] = Options.Handle,
+            ["order_nsu"] = orderNsu
+        };
+        if (!string.IsNullOrWhiteSpace(transactionNsu)) payload["transaction_nsu"] = transactionNsu;
+        if (!string.IsNullOrWhiteSpace(slug)) payload["slug"] = slug;
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{Options.ApiBaseUrl.TrimEnd('/')}/payment_check")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(payload, SerializerOptions), Encoding.UTF8, "application/json")
+        };
+        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await http.SendAsync(httpRequest);
+        if (!response.IsSuccessStatusCode) return false;
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = json.RootElement;
+        return root.ValueKind == JsonValueKind.Object
+            && root.TryGetProperty("paid", out var paid)
+            && paid.ValueKind == JsonValueKind.True;
     }
 
     private static string? GetString(JsonElement element, string propertyName)

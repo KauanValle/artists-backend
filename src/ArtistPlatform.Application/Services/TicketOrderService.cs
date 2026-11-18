@@ -151,6 +151,20 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
             order.BuyerName, order.BuyerEmail, order.Quantity, order.UnitPrice, order.TotalAmount, order.Status);
     }
 
+    private async Task<bool> TryConfirmWithGatewayAsync(TicketOrder order)
+    {
+        try
+        {
+            if (!await infinityPay.IsPaidAsync(order.Id.ToString())) return false;
+        }
+        catch (Exception)
+        {
+            return false; // gateway indisponível: mantém o status atual
+        }
+        await MarkPaidAsync(order);
+        return true;
+    }
+
     /// <summary>Quantidade reservada por pedidos aguardando pagamento ainda dentro do prazo.</summary>
     private async Task<int> PendingAsync(Guid eventTicketId)
     {
@@ -201,6 +215,18 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
             where o.BuyerCpf == cpfDigits && o.BuyerPhone == phoneDigits
             orderby o.CreatedAt descending
             select new { Order = o, TicketTitle = t.Title, Event = e }).Take(100).ToListAsync();
+
+        // Plano B do webhook: pedidos ainda "aguardando" são conferidos direto no InfinityPay, então
+        // abrir "Acompanhar pedidos" já corrige o status mesmo que o webhook não tenha chegado.
+        foreach (var r in rows.Where(r => r.Order.Status == TicketOrderStatus.AwaitingPayment
+                                          && !string.IsNullOrWhiteSpace(r.Order.CheckoutUrl)).Take(5))
+        {
+            if (await TryConfirmWithGatewayAsync(r.Order))
+            {
+                r.Order.Status = TicketOrderStatus.Paid;
+                r.Order.PaidAt = DateTime.UtcNow;
+            }
+        }
 
         var limit = DateTime.UtcNow - ReservationHold;
         return rows.Select(r =>
