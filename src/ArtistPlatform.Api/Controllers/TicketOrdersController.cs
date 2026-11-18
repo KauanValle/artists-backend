@@ -22,6 +22,8 @@ public class PublicTicketOrdersController(ITicketOrderService orderService) : Co
 
 public record LookupTicketOrdersRequestDto(string Cpf, string Phone);
 
+public record VerifyTicketReturnRequestDto(string OrderNsu, string? TransactionNsu, string? Slug);
+
 /// <summary>Consulta pública "acompanhar pedidos": CPF + telefone do comprador.</summary>
 [ApiController]
 [Route("api/public/ticket-orders")]
@@ -40,6 +42,17 @@ public class PublicTicketOrderLookupController(ITicketOrderService orderService)
                 new { error = "TooManyRequests", title = "Muitas consultas. Aguarde um minuto e tente novamente.", status = 429 });
 
         return Ok(await orderService.LookupAsync(request.Cpf, request.Phone));
+    }
+
+    /// <summary>Chamado pela página de retorno do checkout: confere o pagamento direto no InfinityPay.</summary>
+    [HttpPost("verify")]
+    public async Task<ActionResult<TicketReturnDto>> Verify(VerifyTicketReturnRequestDto request)
+    {
+        if (!TryConsume(ClientIp()))
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                new { error = "TooManyRequests", title = "Muitas consultas. Aguarde um minuto e tente novamente.", status = 429 });
+
+        return Ok(await orderService.VerifyReturnAsync(request.OrderNsu, request.TransactionNsu, request.Slug));
     }
 
     private string ClientIp()

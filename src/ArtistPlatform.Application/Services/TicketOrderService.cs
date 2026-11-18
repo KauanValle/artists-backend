@@ -61,12 +61,21 @@ public interface ITicketOrderService
     /// <summary>Gera (ou reaproveita) o checkout do InfinityPay para o pedido. Ingresso gratuito é confirmado direto.</summary>
     Task<TicketCheckoutDto> StartCheckoutAsync(Guid ticketEventId, Guid orderId);
 
+    /// <summary>
+    /// Volta do checkout (redirect_url traz order_nsu, transaction_nsu e slug): confirma o pagamento
+    /// consultando o InfinityPay — os parâmetros do navegador nunca valem por si só.
+    /// </summary>
+    Task<TicketReturnDto> VerifyReturnAsync(string orderNsu, string? transactionNsu, string? slug);
+
     /// <summary>Webhook do InfinityPay. Retorna null se a referência não for de um pedido de ingresso.</summary>
     Task<WebhookResultDto?> HandleWebhookAsync(Guid orderRef, string body);
 }
 
 /// <summary>Resultado do checkout: URL do InfinityPay, ou Paid = true quando o ingresso é gratuito.</summary>
 public record TicketCheckoutDto(string? CheckoutUrl, bool Paid);
+
+/// <summary>Resultado da verificação na volta do checkout: Found = o retorno é de um pedido de ingresso.</summary>
+public record TicketReturnDto(bool Found, bool Paid);
 
 public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay) : ITicketOrderService
 {
@@ -151,11 +160,36 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
             order.BuyerName, order.BuyerEmail, order.Quantity, order.UnitPrice, order.TotalAmount, order.Status);
     }
 
+    public async Task<TicketReturnDto> VerifyReturnAsync(string orderNsu, string? transactionNsu, string? slug)
+    {
+        if (!Guid.TryParse(orderNsu, out var orderId)) return new TicketReturnDto(false, false);
+        var order = await db.TicketOrders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId);
+        if (order is null) return new TicketReturnDto(false, false);
+        if (order.Status == TicketOrderStatus.Paid) return new TicketReturnDto(true, true);
+        if (order.Status == TicketOrderStatus.Cancelled) return new TicketReturnDto(true, false);
+
+        bool paid;
+        try
+        {
+            paid = await infinityPay.IsPaidAsync(orderNsu, transactionNsu, slug);
+        }
+        catch (Exception)
+        {
+            return new TicketReturnDto(true, false);
+        }
+        if (paid) await MarkPaidAsync(order);
+        return new TicketReturnDto(true, paid);
+    }
+
     private async Task<bool> TryConfirmWithGatewayAsync(TicketOrder order)
     {
         try
         {
-            if (!await infinityPay.IsPaidAsync(order.Id.ToString())) return false;
+            // Pedidos novos: order_nsu = id do pedido. Pedidos antigos: tenta o código devolvido pelo InfinityPay ao criar o link.
+            var paid = await infinityPay.IsPaidAsync(order.Id.ToString());
+            if (!paid && !string.IsNullOrWhiteSpace(order.TransactionId))
+                paid = await infinityPay.IsPaidAsync(order.TransactionId);
+            if (!paid) return false;
         }
         catch (Exception)
         {

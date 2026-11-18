@@ -4,6 +4,7 @@ using System.Text.Json;
 using ArtistPlatform.Application.Common;
 using ArtistPlatform.Application.DTOs;
 using ArtistPlatform.Application.Interfaces;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace ArtistPlatform.Infrastructure.Payments;
@@ -14,7 +15,10 @@ namespace ArtistPlatform.Infrastructure.Payments;
 /// O webhook_url leva ?ref={paymentId} para correlacionar a confirmação
 /// com o pagamento persistido, independente do formato do payload do gateway.
 /// </summary>
-public class InfinityPayClient(HttpClient http, IOptions<InfinityPayOptions> optionsSnapshot) : IInfinityPayClient
+public class InfinityPayClient(
+    HttpClient http,
+    IOptions<InfinityPayOptions> optionsSnapshot,
+    Microsoft.Extensions.Logging.ILogger<InfinityPayClient> logger) : IInfinityPayClient
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -91,9 +95,12 @@ public class InfinityPayClient(HttpClient http, IOptions<InfinityPayOptions> opt
         httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         using var response = await http.SendAsync(httpRequest);
+        var raw = await response.Content.ReadAsStringAsync();
+        logger.LogInformation("InfinityPay payment_check order_nsu={OrderNsu} status={Status} corpo={Body}",
+            orderNsu, (int)response.StatusCode, raw.Length > 500 ? raw[..500] : raw);
         if (!response.IsSuccessStatusCode) return false;
 
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        using var json = JsonDocument.Parse(raw);
         var root = json.RootElement;
         return root.ValueKind == JsonValueKind.Object
             && root.TryGetProperty("paid", out var paid)
