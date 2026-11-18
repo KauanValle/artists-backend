@@ -168,6 +168,7 @@ public class AdminCampaignsController(IAppDbContext db) : ControllerBase
 public class PublicCampaignsController(IAppDbContext db) : ControllerBase
 {
     public record PublicCampaignDto(
+        Guid Id,
         string Slug,
         string Name,
         string Description,
@@ -180,6 +181,21 @@ public class PublicCampaignsController(IAppDbContext db) : ControllerBase
         long? GoalCurrent
     );
 
+    [HttpGet]
+    public async Task<ActionResult<List<PublicCampaignDto>>> GetAll()
+    {
+        var list = await db.Campaigns
+            .Where(c => c.IsActive)
+            .OrderByDescending(c => c.CreatedAt)
+            .Select(c => new PublicCampaignDto(
+                c.Id, c.Slug, c.Name, c.Description, c.Rules,
+                c.Type, c.StartDate, c.EndDate,
+                c.GoalDescription, c.GoalTarget, c.GoalCurrent))
+            .ToListAsync();
+
+        return Ok(list);
+    }
+
     [HttpGet("{slug}")]
     public async Task<ActionResult<PublicCampaignDto>> GetBySlug(string slug)
     {
@@ -189,7 +205,7 @@ public class PublicCampaignsController(IAppDbContext db) : ControllerBase
         if (c is null) return NotFound();
 
         return Ok(new PublicCampaignDto(
-            c.Slug, c.Name, c.Description, c.Rules,
+            c.Id, c.Slug, c.Name, c.Description, c.Rules,
             c.Type, c.StartDate, c.EndDate,
             c.GoalDescription, c.GoalTarget, c.GoalCurrent));
     }
