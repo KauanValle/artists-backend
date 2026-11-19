@@ -92,6 +92,8 @@ public interface ITicketEventService
 
     /// <summary>Página pública do evento (sem login): qualquer pessoa com o link pode ver.</summary>
     Task<TicketEventDto> GetPublicAsync(Guid id);
+    /// <summary>Lista todos os eventos da plataforma (públicos, mais recentes primeiro).</summary>
+    Task<List<TicketEventDto>> ListAllPublicAsync();
     Task<TicketEventDto> CreateAsync(SaveTicketEventRequestDto request);
     Task DeleteAsync(Guid id);
 
@@ -146,6 +148,17 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
             .FirstOrDefaultAsync(e => e.Id == id)
             ?? throw new NotFoundException("Evento não encontrado.");
         return ToDto(ev, await PendingReservationsAsync([ev]));
+    }
+
+    public async Task<List<TicketEventDto>> ListAllPublicAsync()
+    {
+        var events = await db.TicketEvents.AsNoTracking()
+            .Include(e => e.Tickets)
+            .OrderByDescending(e => e.StartDate)
+            .ThenByDescending(e => e.CreatedAt)
+            .ToListAsync();
+        var pending = await PendingReservationsAsync(events);
+        return events.Select(e => ToDto(e, pending)).ToList();
     }
 
     public async Task<TicketFeeDto> GetFeeAsync()

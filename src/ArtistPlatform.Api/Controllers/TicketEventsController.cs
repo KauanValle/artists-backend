@@ -44,6 +44,11 @@ public class TicketEventsController(ITicketEventService ticketEventService) : Co
 [AllowAnonymous]
 public class PublicTicketEventsController(ITicketEventService ticketEventService) : ControllerBase
 {
+    /// <summary>Lista todos os eventos da plataforma (públicos, mais recentes primeiro).</summary>
+    [HttpGet]
+    public async Task<ActionResult<List<TicketEventDto>>> ListAll()
+        => Ok(await ticketEventService.ListAllPublicAsync());
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<TicketEventDto>> Get(Guid id)
         => Ok(await ticketEventService.GetPublicAsync(id));
