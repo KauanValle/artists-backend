@@ -95,6 +95,7 @@ public interface ITicketEventService
     /// <summary>Lista todos os eventos da plataforma (públicos, mais recentes primeiro).</summary>
     Task<List<TicketEventDto>> ListAllPublicAsync();
     Task<TicketEventDto> CreateAsync(SaveTicketEventRequestDto request);
+    Task<TicketEventDto> UpdateAsync(Guid id, SaveTicketEventRequestDto request);
     Task DeleteAsync(Guid id);
 
     /// <summary>Percentual da taxa administrativa aplicada sobre o valor a receber dos ingressos.</summary>
@@ -246,6 +247,132 @@ public class TicketEventService(IAppDbContext db, ICurrentUserService currentUse
         }
 
         db.TicketEvents.Add(ev);
+        await db.SaveChangesAsync();
+        return ToDto(ev);
+    }
+
+
+    public async Task<TicketEventDto> UpdateAsync(Guid id, SaveTicketEventRequestDto request)
+    {
+        var userId = currentUser.EnsureAuthenticated();
+        var ev = await db.TicketEvents
+            .Include(e => e.Tickets)
+            .FirstOrDefaultAsync(e => e.Id == id && e.OwnerUserId == userId)
+            ?? throw new NotFoundException("Evento não encontrado.");
+
+        // Valida campos
+        ev.Name = Required(request.Name, "o nome do evento", 3, 200);
+        ev.ImageUrl = Required(request.ImageUrl, "a imagem de divulgação", 1, 500);
+        ev.Category = Required(request.Category, "a categoria", 1, 60);
+        ev.Description = Required(request.Description, "a descrição do evento", 10, 2000);
+        ev.VenueName = Required(request.Venue, "o nome do local", 2, 200);
+        ev.Street = Required(request.Street, "a rua", 2, 200);
+        ev.Number = Required(request.Number, "o número", 1, 20);
+        ev.Neighborhood = Required(request.Neighborhood, "o bairro", 2, 120);
+        ev.City = Required(request.City, "a cidade", 2, 120);
+        ev.ProducerName = Required(request.ProducerName, "o nome do produtor", 2, 200);
+        ev.ProducerDescription = Required(request.ProducerDescription, "a descrição do produtor", 10, 1000);
+
+        var complement = (request.Complement ?? string.Empty).Trim();
+        if (complement.Length > 100)
+            throw new ValidationException("O complemento deve ter no máximo 100 caracteres.");
+        ev.Complement = complement;
+
+        var state = (request.State ?? string.Empty).Trim().ToUpperInvariant();
+        if (state.Length != 2 || !state.All(char.IsAsciiLetter))
+            throw new ValidationException("Informe o estado com a sigla de 2 letras (UF).");
+        ev.State = state;
+
+        var cepDigits = new string((request.Cep ?? string.Empty).Where(char.IsAsciiDigit).ToArray());
+        if (cepDigits.Length != 8)
+            throw new ValidationException("CEP inválido.");
+        ev.Cep = $"{cepDigits[..5]}-{cepDigits[5..]}";
+
+        var startDate = ParseDate(request.StartDate, "de início");
+        var startTime = ParseTime(request.StartTime, "de início");
+        var endDate = ParseDate(request.EndDate, "de término");
+        var endTime = ParseTime(request.EndTime, "de término");
+
+        var start = startDate.ToDateTime(startTime);
+        var end = endDate.ToDateTime(endTime);
+        if (end <= start)
+            throw new ValidationException("O término do evento deve ser depois do início.");
+
+        ev.StartDate = startDate;
+        ev.StartTime = startTime;
+        ev.EndDate = endDate;
+        ev.EndTime = endTime;
+
+        // ── Ingressos ──
+        // Ingressos que já venderam não podem ser removidos nem ter valor/quantidade reduzida.
+        var incoming = request.Tickets ?? [];
+        if (incoming.Count > MaxTicketsPerEvent)
+            throw new ValidationException($"Um evento pode ter no máximo {MaxTicketsPerEvent} tipos de ingresso.");
+
+        var feePercent = await GetFeePercentAsync();
+
+        // Mapeia ingressos existentes pelo título para merge simplificado
+        var existingByTitle = ev.Tickets.ToDictionary(t => t.Title, StringComparer.OrdinalIgnoreCase);
+        var processedIds = new HashSet<Guid>();
+
+        foreach (var dto in incoming)
+        {
+            var title = Required(dto.Title, "o título do ingresso", 2, 120);
+
+            if (existingByTitle.TryGetValue(title, out var existing))
+            {
+                // Atualiza ingresso existente
+                if (existing.SoldQuantity > 0)
+                {
+                    // Com vendas: só pode aumentar quantidade, não reduzir abaixo de vendidos
+                    if (dto.Quantity < existing.SoldQuantity)
+                        throw new ValidationException(
+                            $"O ingresso \"{title}\" já vendeu {existing.SoldQuantity} unidades. A quantidade não pode ser menor que isso.");
+
+                    existing.Quantity = dto.Quantity;
+                    // Descrição e datas de venda podem mudar
+                    existing.Description = (dto.Description ?? string.Empty).Trim();
+                    var salesStart = ParseDate(dto.SalesStartDate, $"de início das vendas do ingresso \"{title}\"");
+                    var salesEnd = ParseDate(dto.SalesEndDate, $"de fim das vendas do ingresso \"{title}\"");
+                    if (salesEnd < salesStart)
+                        throw new ValidationException($"O fim das vendas do ingresso \"{title}\" deve ser igual ou depois do início.");
+                    if (salesEnd > endDate)
+                        throw new ValidationException($"As vendas do ingresso \"{title}\" não podem terminar depois do término do evento.");
+                    existing.SalesStartDate = salesStart;
+                    existing.SalesEndDate = salesEnd;
+                    // Valor e taxa NÃO mudam em ingresso com vendas (mantém snapshot)
+                }
+                else
+                {
+                    // Sem vendas: pode alterar tudo
+                    var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3));
+                    var rebuilt = BuildTicket(dto, feePercent, today, endDate);
+                    existing.Title = rebuilt.Title;
+                    existing.Quantity = rebuilt.Quantity;
+                    existing.ReceiveAmount = rebuilt.ReceiveAmount;
+                    existing.FeePercent = rebuilt.FeePercent;
+                    existing.BuyerPrice = rebuilt.BuyerPrice;
+                    existing.SalesStartDate = rebuilt.SalesStartDate;
+                    existing.SalesEndDate = rebuilt.SalesEndDate;
+                    existing.Description = rebuilt.Description;
+                }
+                processedIds.Add(existing.Id);
+            }
+            else
+            {
+                // Novo ingresso
+                var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3));
+                ev.Tickets.Add(BuildTicket(dto, feePercent, today, endDate));
+            }
+        }
+
+        // Remove ingressos que não vieram no request E não têm vendas
+        var toRemove = ev.Tickets.Where(t => !processedIds.Contains(t.Id) && t.SoldQuantity == 0 && !incoming.Any(i => i.Title.Equals(t.Title, StringComparison.OrdinalIgnoreCase))).ToList();
+        foreach (var r in toRemove)
+            ev.Tickets.Remove(r);
+
+        // Ingressos com vendas que foram omitidos do request continuam existindo (não removidos)
+
         await db.SaveChangesAsync();
         return ToDto(ev);
     }

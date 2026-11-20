@@ -30,6 +30,10 @@ public class TicketEventsController(ITicketEventService ticketEventService) : Co
     public async Task<ActionResult<TicketEventDto>> Create(SaveTicketEventRequestDto request)
         => Ok(await ticketEventService.CreateAsync(request));
 
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<TicketEventDto>> Update(Guid id, SaveTicketEventRequestDto request)
+        => Ok(await ticketEventService.UpdateAsync(id, request));
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
