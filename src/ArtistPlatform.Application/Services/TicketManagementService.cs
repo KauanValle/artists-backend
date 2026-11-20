@@ -126,6 +126,12 @@ public interface ITicketManagementService
     // Portaria (sem conta, identificada pelo código do acesso)
     Task<GateSessionDto> OpenGateAsync(string gateCode);
     Task<CheckInResultDto> CheckInAtGateAsync(string gateCode, string ticketCode);
+
+    // Admin (sem verificação de dono)
+    Task<TicketEventStatsDto> GetStatsAdminAsync(Guid eventId);
+    Task<List<EventOrderDto>> ListOrdersAdminAsync(Guid eventId);
+    Task<List<CheckInLogDto>> ListCheckInsAdminAsync(Guid eventId);
+    Task<List<GateAccessDto>> ListGatesAdminAsync(Guid eventId);
 }
 
 // ─────────────────────────── Implementação ───────────────────────────
@@ -296,7 +302,114 @@ public class TicketManagementService(IAppDbContext db, ICurrentUserService curre
         await db.SaveChangesAsync();
     }
 
-    // ── portaria ──
+    // ── admin (sem verificação de dono) ──
+
+    private async Task<TicketEvent> LoadEventAdminAsync(Guid eventId)
+    {
+        return await db.TicketEvents.AsNoTracking().FirstOrDefaultAsync(e => e.Id == eventId)
+            ?? throw new NotFoundException("Evento não encontrado.");
+    }
+
+    public async Task<TicketEventStatsDto> GetStatsAdminAsync(Guid eventId)
+    {
+        var ev = await LoadEventAdminAsync(eventId);
+
+        var tickets = await db.EventTickets.AsNoTracking()
+            .Where(t => t.TicketEventId == eventId)
+            .OrderBy(t => t.CreatedAt)
+            .ToListAsync();
+
+        var limit = DateTime.UtcNow - TicketOrderService.ReservationHold;
+        var reservedByTicket = await db.TicketOrders.AsNoTracking()
+            .Where(o => o.TicketEventId == eventId
+                && o.Status == TicketOrderStatus.AwaitingPayment
+                && o.CreatedAt > limit)
+            .GroupBy(o => o.EventTicketId)
+            .Select(g => new { g.Key, Quantity = g.Sum(o => o.Quantity) })
+            .ToDictionaryAsync(x => x.Key, x => x.Quantity);
+
+        var pendingOrders = await db.TicketOrders.AsNoTracking()
+            .CountAsync(o => o.TicketEventId == eventId
+                && o.Status == TicketOrderStatus.AwaitingPayment
+                && o.CreatedAt > limit);
+
+        var checkedInByTicket = await db.IssuedTickets.AsNoTracking()
+            .Where(t => t.TicketEventId == eventId && t.CheckedInAt != null)
+            .GroupBy(t => t.EventTicketId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+        var types = tickets.Select(t =>
+        {
+            var reserved = reservedByTicket.GetValueOrDefault(t.Id);
+            return new TicketTypeStatsDto(
+                t.Id, t.Title, t.Quantity, t.SoldQuantity, reserved,
+                Math.Max(0, t.Quantity - t.SoldQuantity - reserved),
+                checkedInByTicket.GetValueOrDefault(t.Id),
+                t.BuyerPrice, t.ReceiveAmount,
+                t.SoldQuantity * t.BuyerPrice,
+                t.SoldQuantity * t.ReceiveAmount);
+        }).ToList();
+
+        return new TicketEventStatsDto(
+            ev.Id, ev.Name,
+            types.Sum(t => t.Quantity),
+            types.Sum(t => t.Sold),
+            types.Sum(t => t.Reserved),
+            types.Sum(t => t.CheckedIn),
+            pendingOrders,
+            types.Sum(t => t.GrossRevenue),
+            types.Sum(t => t.NetRevenue),
+            types);
+    }
+
+    public async Task<List<EventOrderDto>> ListOrdersAdminAsync(Guid eventId)
+    {
+        await LoadEventAdminAsync(eventId);
+
+        var rows = await (
+            from o in db.TicketOrders.AsNoTracking()
+            join t in db.EventTickets.AsNoTracking() on o.EventTicketId equals t.Id
+            where o.TicketEventId == eventId
+            orderby o.CreatedAt descending
+            select new { Order = o, TicketTitle = t.Title }).Take(1000).ToListAsync();
+
+        var checkedIn = await db.IssuedTickets.AsNoTracking()
+            .Where(t => t.TicketEventId == eventId && t.CheckedInAt != null)
+            .GroupBy(t => t.TicketOrderId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+        var limit = DateTime.UtcNow - TicketOrderService.ReservationHold;
+        return rows.Select(r => new EventOrderDto(
+            r.Order.Id, r.Order.BuyerName, r.Order.BuyerEmail, r.Order.BuyerPhone, r.Order.BuyerCpf,
+            r.TicketTitle, r.Order.Quantity, r.Order.TotalAmount, r.Order.Status,
+            r.Order.Status == TicketOrderStatus.AwaitingPayment && r.Order.CreatedAt <= limit,
+            r.Order.CreatedAt, r.Order.PaidAt, checkedIn.GetValueOrDefault(r.Order.Id))).ToList();
+    }
+
+    public async Task<List<CheckInLogDto>> ListCheckInsAdminAsync(Guid eventId)
+    {
+        await LoadEventAdminAsync(eventId);
+        return await ListCheckInsCoreAsync(eventId);
+    }
+
+    public async Task<List<GateAccessDto>> ListGatesAdminAsync(Guid eventId)
+    {
+        await LoadEventAdminAsync(eventId);
+        var gates = await db.GateAccesses.AsNoTracking()
+            .Where(g => g.TicketEventId == eventId)
+            .OrderBy(g => g.CreatedAt)
+            .ToListAsync();
+        var counts = await db.IssuedTickets.AsNoTracking()
+            .Where(t => t.TicketEventId == eventId && t.CheckedInGateId != null)
+            .GroupBy(t => t.CheckedInGateId!.Value)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
+        return gates.Select(g => new GateAccessDto(g.Id, g.Name, g.Code, g.CreatedAt, g.RevokedAt, counts.GetValueOrDefault(g.Id))).ToList();
+    }
+
+        // ── portaria ──
 
     private async Task<GateAccess> LoadGateAsync(string gateCode)
     {
