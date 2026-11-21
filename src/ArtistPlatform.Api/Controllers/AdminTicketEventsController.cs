@@ -366,4 +366,41 @@ public class AdminTicketEventsController(
 
         return Ok(new { message = "Pedido excluído com sucesso." });
     }
+
+    /// <summary>
+    /// Recalcula SoldQuantity de todos os tipos de ingresso de um evento
+    /// com base nos pedidos realmente pagos. Corrige inconsistências.
+    /// </summary>
+    [HttpPost("{eventId:guid}/sync-sold")]
+    public async Task<IActionResult> SyncSold(Guid eventId)
+    {
+        var ev = await db.TicketEvents.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == eventId)
+            ?? throw new NotFoundException("Evento não encontrado.");
+
+        var tickets = await db.EventTickets
+            .Where(t => t.TicketEventId == eventId)
+            .ToListAsync();
+
+        var fixes = new List<object>();
+
+        foreach (var ticket in tickets)
+        {
+            var realSold = await db.TicketOrders.AsNoTracking()
+                .Where(o => o.EventTicketId == ticket.Id && o.Status == TicketOrderStatus.Paid)
+                .SumAsync(o => (int?)o.Quantity) ?? 0;
+
+            if (ticket.SoldQuantity != realSold)
+            {
+                fixes.Add(new { ticketId = ticket.Id, title = ticket.Title, old = ticket.SoldQuantity, @new = realSold });
+                ticket.SoldQuantity = realSold;
+                ticket.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        if (fixes.Count > 0)
+            await db.SaveChangesAsync();
+
+        return Ok(new { message = fixes.Count > 0 ? $"{fixes.Count} tipo(s) corrigido(s)." : "Tudo já estava correto.", fixes });
+    }
 }
