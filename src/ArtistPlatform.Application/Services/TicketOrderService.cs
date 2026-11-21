@@ -94,7 +94,7 @@ public record TicketCheckoutDto(string? CheckoutUrl, bool Paid);
 /// <summary>Resultado da verificação na volta do checkout: Found = o retorno é de um pedido de ingresso.</summary>
 public record TicketReturnDto(bool Found, bool Paid, TicketOrderSummaryDto? OrderSummary = null);
 
-public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay) : ITicketOrderService
+public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay, IEmailService emailService) : ITicketOrderService
 {
     public const int MaxQuantityPerOrder = 10;
 
@@ -307,8 +307,117 @@ public class TicketOrderService(IAppDbContext db, IInfinityPayClient infinityPay
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.SoldQuantity, t => t.SoldQuantity + order.Quantity));
 
         await EnsureIssuedAsync(order);
+
+        // Envia email de confirmação com os códigos do ingresso
+        try { await SendTicketConfirmationEmailAsync(order); }
+        catch { /* falha no email não impede o fluxo principal */ }
+
         return true;
     }
+
+    /// <summary>
+    /// Envia email de confirmação do ingresso com os códigos QR após pagamento.
+    /// Chamado automaticamente pelo webhook e pelo verify-return.
+    /// </summary>
+    private async Task SendTicketConfirmationEmailAsync(TicketOrder order)
+    {
+        var row = await (
+            from t in db.EventTickets.AsNoTracking()
+            join e in db.TicketEvents.AsNoTracking() on t.TicketEventId equals e.Id
+            where t.Id == order.EventTicketId
+            select new { TicketTitle = t.Title, Event = e }).FirstOrDefaultAsync();
+        if (row is null) return;
+
+        var tickets = await db.IssuedTickets.AsNoTracking()
+            .Where(i => i.TicketOrderId == order.Id)
+            .OrderBy(i => i.Sequence)
+            .ToListAsync();
+
+        var ticketCodesHtml = string.Join("", tickets.Select(t =>
+        {
+            var formatted = string.Join("-", Enumerable.Range(0, (int)Math.Ceiling(t.Code.Length / 4.0))
+                .Select(i => t.Code.Substring(i * 4, Math.Min(4, t.Code.Length - i * 4))));
+            return $"<div style='background:#f3f4f6;border-radius:8px;padding:12px 16px;margin:4px 0;font-family:monospace;font-size:16px;letter-spacing:1px;text-align:center;'>{formatted}</div>";
+        }));
+
+        var eventDate = row.Event.StartDate.ToString("dd/MM/yyyy");
+        var eventTime = row.Event.StartTime.ToString("HH:mm");
+
+        var html = $"""
+        <h1>Pagamento confirmado! 🎉</h1>
+        <p>Olá, <span class="highlight">{order.BuyerName}</span>!</p>
+        <p>Seu pagamento para o evento <strong>{row.Event.Name}</strong> foi confirmado com sucesso.</p>
+
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin:20px 0;">
+          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Evento</p>
+          <p style="margin:0 0 12px;font-weight:700;font-size:16px;">{row.Event.Name}</p>
+          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Data</p>
+          <p style="margin:0 0 12px;font-weight:600;">{eventDate} às {eventTime}</p>
+          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Local</p>
+          <p style="margin:0 0 12px;font-weight:600;">{row.Event.VenueName} · {row.Event.City}/{row.Event.State}</p>
+          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Ingresso</p>
+          <p style="margin:0;font-weight:600;">{order.Quantity}x {row.TicketTitle}</p>
+        </div>
+
+        <h2 style="font-size:16px;margin:24px 0 8px;">Seus códigos de ingresso</h2>
+        {ticketCodesHtml}
+
+        <p style="margin-top:20px;">Para baixar seu ingresso em PDF com o QR code, acesse:</p>
+        <div style="text-align:center;margin:16px 0;">
+          <a href="https://reprissa.com.br/acompanhar-pedidos" style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;text-decoration:none;border-radius:8px;font-weight:600;">Acompanhar meus pedidos</a>
+        </div>
+
+        <p style="color:#9ca3af;font-size:13px;margin-top:24px;">Apresente o QR code na entrada do evento junto com um documento com foto.</p>
+        """;
+
+        var fullHtml = WrapInLayout(html, $"Ingresso confirmado - {row.Event.Name}");
+
+        await emailService.SendAsync(new EmailMessage
+        {
+            To = order.BuyerEmail,
+            Subject = $"🎉 Ingresso confirmado: {row.Event.Name}",
+            HtmlBody = fullHtml,
+            Bcc = ["geral@reprissa.com.br"],
+        });
+    }
+
+    private static string WrapInLayout(string content, string title) =>
+        """
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>TITLE_PLACEHOLDER</title>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+            .wrapper { max-width: 600px; margin: 0 auto; padding: 32px 16px; }
+            .card { background: #ffffff; border-radius: 12px; padding: 40px 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+            .logo { text-align: center; margin-bottom: 32px; }
+            .logo span { font-size: 24px; font-weight: 800; background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.5px; }
+            h1 { color: #1a1a2e; font-size: 22px; font-weight: 700; margin: 0 0 16px; }
+            h2 { color: #1a1a2e; }
+            p { color: #4a4a68; font-size: 15px; line-height: 1.7; margin: 0 0 16px; }
+            .highlight { color: #7c3aed; font-weight: 600; }
+            .footer { text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e8e8ed; }
+            .footer p { color: #9ca3af; font-size: 12px; line-height: 1.6; }
+            .footer a { color: #8b5cf6; text-decoration: none; }
+          </style>
+        </head>
+        <body>
+          <div class="wrapper">
+            <div class="card">
+              <div class="logo"><span>Reprissa</span></div>
+              CONTENT_PLACEHOLDER
+            </div>
+            <div class="footer">
+              <p>&copy; 2024 Reprissa. Todos os direitos reservados.</p>
+              <p><a href="https://reprissa.com.br">reprissa.com.br</a> &middot; <a href="https://instagram.com/reprissaoficial">@reprissaoficial</a></p>
+            </div>
+          </div>
+        </body>
+        </html>
+        """.Replace("TITLE_PLACEHOLDER", title).Replace("CONTENT_PLACEHOLDER", content);
 
     /// <summary>
     /// Emite os ingressos individuais (um por unidade) de um pedido pago, cada um com código aleatório próprio.
