@@ -503,6 +503,9 @@ public class AdminPaymentLinkConfiguration : IEntityTypeConfiguration<AdminPayme
         builder.Property(l => l.Status).HasMaxLength(20).IsRequired();
         builder.Property(l => l.TransactionId).HasMaxLength(100);
         builder.Property(l => l.CheckoutUrl).HasMaxLength(1000).IsRequired();
+        builder.Property(l => l.PaidVia).HasMaxLength(20);
+        builder.Property(l => l.PaymentMethod).HasMaxLength(40);
+        builder.Property(l => l.ReceiptUrl).HasMaxLength(1000);
         builder.HasIndex(l => l.CreatedAt);
     }
 }

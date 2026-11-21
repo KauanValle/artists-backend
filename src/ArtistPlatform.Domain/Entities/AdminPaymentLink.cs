@@ -19,6 +19,12 @@ public class AdminPaymentLink : BaseEntity
     public string? TransactionId { get; set; }
     public string CheckoutUrl { get; set; } = default!;
     public DateTime? PaidAt { get; set; }
+
+    /// <summary>Como a confirmação chegou: "Webhook" (InfinityPay avisou) ou "Verificação" (consulta ao gateway).</summary>
+    public string? PaidVia { get; set; }
+    /// <summary>Forma de pagamento informada pelo gateway (capture_method), ex.: pix, credit_card.</summary>
+    public string? PaymentMethod { get; set; }
+    public string? ReceiptUrl { get; set; }
     public Guid CreatedByUserId { get; set; }
 }
 

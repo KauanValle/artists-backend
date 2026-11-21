@@ -3,6 +3,7 @@ using ArtistPlatform.Application.DTOs;
 using ArtistPlatform.Application.Interfaces;
 using ArtistPlatform.Application.Persistence;
 using ArtistPlatform.Domain.Entities;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArtistPlatform.Application.Services;
@@ -11,7 +12,8 @@ public record CreateAdminPaymentLinkRequestDto(string Description, decimal Amoun
 
 public record AdminPaymentLinkDto(
     Guid Id, string Description, decimal Amount, string? CustomerName, string? Note,
-    string Status, string CheckoutUrl, DateTime CreatedAt, DateTime? PaidAt);
+    string Status, string CheckoutUrl, DateTime CreatedAt, DateTime? PaidAt,
+    string? PaidVia, string? PaymentMethod, string? ReceiptUrl);
 
 /// <summary>Visão pública da cobrança (página /pagar/{id}): sem observação interna; checkout só enquanto pendente.</summary>
 public record PublicPaymentLinkDto(
@@ -85,7 +87,7 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
             try
             {
                 if (await infinityPay.IsPaidAsync(link.Id.ToString(), link.TransactionId))
-                    await MarkPaidAsync(link);
+                    await MarkPaidAsync(link, "Verificação");
             }
             catch (Exception)
             {
@@ -116,7 +118,7 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
             var paid = await infinityPay.IsPaidAsync(link.Id.ToString(), link.TransactionId)
                 || (!string.IsNullOrWhiteSpace(link.TransactionId)
                     && await infinityPay.IsPaidAsync(link.Id.ToString()));
-            if (paid) await MarkPaidAsync(link);
+            if (paid) await MarkPaidAsync(link, "Verificação");
         }
         return ToDto(link);
     }
@@ -145,22 +147,47 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
             return new WebhookResultDto(false, "Evento não indica pagamento confirmado — ignorado.");
 
         // Pagamento confirmado vale mesmo que o link tenha sido cancelado (o dinheiro já entrou).
-        await MarkPaidAsync(link);
+        await MarkPaidAsync(link, "Webhook", body);
         return new WebhookResultDto(true, "Pagamento do link confirmado.");
     }
 
-    private async Task MarkPaidAsync(AdminPaymentLink link)
+    private async Task MarkPaidAsync(AdminPaymentLink link, string via, string? webhookBody = null)
     {
         link.Status = AdminPaymentLinkStatus.Paid;
         link.PaidAt = DateTime.UtcNow;
         link.UpdatedAt = link.PaidAt;
+        link.PaidVia = via;
+
+        // O payload do webhook traz a forma de pagamento (capture_method) e o comprovante (receipt_url).
+        if (webhookBody is not null)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(webhookBody);
+                var root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    link.PaymentMethod = Str(root, "capture_method", 40);
+                    var receipt = Str(root, "receipt_url", 1000);
+                    if (receipt is not null && Uri.TryCreate(receipt, UriKind.Absolute, out var u) && u.Scheme is "http" or "https")
+                        link.ReceiptUrl = receipt;
+                }
+            }
+            catch (JsonException) { /* payload não-JSON: confirma sem os detalhes */ }
+        }
         await db.SaveChangesAsync();
     }
+
+    private static string? Str(JsonElement obj, string name, int max) =>
+        obj.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(p.GetString())
+            ? p.GetString()![..Math.Min(p.GetString()!.Length, max)]
+            : null;
 
     private async Task<AdminPaymentLink> Load(Guid id) =>
         await db.AdminPaymentLinks.FirstOrDefaultAsync(l => l.Id == id)
         ?? throw new NotFoundException("Link de pagamento não encontrado.");
 
     private static AdminPaymentLinkDto ToDto(AdminPaymentLink l) =>
-        new(l.Id, l.Description, l.Amount, l.CustomerName, l.Note, l.Status, l.CheckoutUrl, l.CreatedAt, l.PaidAt);
+        new(l.Id, l.Description, l.Amount, l.CustomerName, l.Note, l.Status, l.CheckoutUrl, l.CreatedAt, l.PaidAt,
+            l.PaidVia, l.PaymentMethod, l.ReceiptUrl);
 }
