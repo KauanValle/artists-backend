@@ -13,8 +13,16 @@ public record AdminPaymentLinkDto(
     Guid Id, string Description, decimal Amount, string? CustomerName, string? Note,
     string Status, string CheckoutUrl, DateTime CreatedAt, DateTime? PaidAt);
 
+/// <summary>Visão pública da cobrança (página /pagar/{id}): sem observação interna; checkout só enquanto pendente.</summary>
+public record PublicPaymentLinkDto(
+    Guid Id, string Description, decimal Amount, string? CustomerName,
+    string Status, string? CheckoutUrl, DateTime CreatedAt, DateTime? PaidAt);
+
 public interface IAdminPaymentLinkService
 {
+    /// <summary>Dados públicos do link; se estiver pendente, confere o pagamento no InfinityPay. Null se não existir.</summary>
+    Task<PublicPaymentLinkDto?> GetPublicAsync(Guid id);
+
     Task<AdminPaymentLinkDto> CreateAsync(Guid adminId, CreateAdminPaymentLinkRequestDto request);
     Task<List<AdminPaymentLinkDto>> ListAsync();
     /// <summary>Consulta o InfinityPay (payment_check) e atualiza o status se já estiver pago.</summary>
@@ -65,6 +73,30 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
         db.AdminPaymentLinks.Add(link);
         await db.SaveChangesAsync();
         return ToDto(link);
+    }
+
+    public async Task<PublicPaymentLinkDto?> GetPublicAsync(Guid id)
+    {
+        var link = await db.AdminPaymentLinks.FirstOrDefaultAsync(l => l.Id == id);
+        if (link is null) return null;
+
+        if (link.Status == AdminPaymentLinkStatus.AwaitingPayment)
+        {
+            try
+            {
+                if (await infinityPay.IsPaidAsync(link.Id.ToString(), link.TransactionId))
+                    await MarkPaidAsync(link);
+            }
+            catch (Exception)
+            {
+                // Falha do gateway não impede de exibir a cobrança; o webhook ainda pode confirmar.
+            }
+        }
+
+        return new PublicPaymentLinkDto(
+            link.Id, link.Description, link.Amount, link.CustomerName, link.Status,
+            link.Status == AdminPaymentLinkStatus.AwaitingPayment ? link.CheckoutUrl : null,
+            link.CreatedAt, link.PaidAt);
     }
 
     public async Task<List<AdminPaymentLinkDto>> ListAsync()
