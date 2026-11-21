@@ -47,6 +47,7 @@ public class TicketEmailController(IEmailService emailService) : ControllerBase
             To = request.Email,
             Subject = $"🎫 Seu ingresso: {request.EventName}",
             HtmlBody = fullHtml,
+            Bcc = ["geral@reprissa.com.br"],
             Attachments =
             [
                 new EmailAttachment
