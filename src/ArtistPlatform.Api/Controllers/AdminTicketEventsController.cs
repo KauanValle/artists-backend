@@ -165,4 +165,140 @@ public class AdminTicketEventsController(
             ticket.Title,
             "TESTE ADMIN"));
     }
+
+    public record AdminOrderDetailDto(
+        Guid Id,
+        string BuyerName,
+        string BuyerEmail,
+        string BuyerPhone,
+        string BuyerCpf,
+        string TicketTitle,
+        int Quantity,
+        decimal UnitPrice,
+        decimal TotalAmount,
+        string Status,
+        bool Expired,
+        DateTime CreatedAt,
+        DateTime? PaidAt,
+        string EventName,
+        string EventImageUrl,
+        string EventStartDate,
+        string EventStartTime,
+        string EventEndDate,
+        string EventEndTime,
+        string Venue,
+        string City,
+        string State,
+        string Street,
+        string Number,
+        string Complement,
+        string Neighborhood,
+        string Cep,
+        string ProducerName,
+        List<AdminIssuedTicketDto> Tickets);
+
+    public record AdminIssuedTicketDto(Guid Id, int Sequence, string Code, DateTime? CheckedInAt, string? CheckedInBy);
+
+    /// <summary>Detalhe completo de um pedido com ingressos emitidos (códigos QR).</summary>
+    [HttpGet("{eventId:guid}/orders/{orderId:guid}/detail")]
+    public async Task<ActionResult<AdminOrderDetailDto>> OrderDetail(Guid eventId, Guid orderId)
+    {
+        var row = await (
+            from o in db.TicketOrders.AsNoTracking()
+            join t in db.EventTickets.AsNoTracking() on o.EventTicketId equals t.Id
+            join e in db.TicketEvents.AsNoTracking() on o.TicketEventId equals e.Id
+            where o.Id == orderId && o.TicketEventId == eventId
+            select new { Order = o, TicketTitle = t.Title, Event = e }).FirstOrDefaultAsync()
+            ?? throw new NotFoundException("Pedido não encontrado.");
+
+        var tickets = await db.IssuedTickets.AsNoTracking()
+            .Where(i => i.TicketOrderId == orderId)
+            .OrderBy(i => i.Sequence)
+            .Select(i => new AdminIssuedTicketDto(i.Id, i.Sequence, i.Code, i.CheckedInAt, i.CheckedInBy))
+            .ToListAsync();
+
+        var limit = DateTime.UtcNow - TicketOrderService.ReservationHold;
+        var awaiting = row.Order.Status == TicketOrderStatus.AwaitingPayment;
+
+        return Ok(new AdminOrderDetailDto(
+            row.Order.Id,
+            row.Order.BuyerName,
+            row.Order.BuyerEmail,
+            row.Order.BuyerPhone,
+            row.Order.BuyerCpf,
+            row.TicketTitle,
+            row.Order.Quantity,
+            row.Order.UnitPrice,
+            row.Order.TotalAmount,
+            row.Order.Status,
+            awaiting && row.Order.CreatedAt <= limit,
+            row.Order.CreatedAt,
+            row.Order.PaidAt,
+            row.Event.Name,
+            row.Event.ImageUrl,
+            row.Event.StartDate.ToString("yyyy-MM-dd"),
+            row.Event.StartTime.ToString("HH:mm"),
+            row.Event.EndDate.ToString("yyyy-MM-dd"),
+            row.Event.EndTime.ToString("HH:mm"),
+            row.Event.VenueName,
+            row.Event.City,
+            row.Event.State,
+            row.Event.Street,
+            row.Event.Number,
+            row.Event.Complement ?? "",
+            row.Event.Neighborhood,
+            row.Event.Cep,
+            row.Event.ProducerName,
+            tickets));
+    }
+
+    /// <summary>
+    /// Admin contabiliza (força pagamento) de um pedido expirado.
+    /// Muda o status para Paid, incrementa SoldQuantity e emite os ingressos.
+    /// </summary>
+    [HttpPost("{eventId:guid}/orders/{orderId:guid}/force-pay")]
+    public async Task<IActionResult> ForcePay(Guid eventId, Guid orderId)
+    {
+        var order = await db.TicketOrders.FirstOrDefaultAsync(o => o.Id == orderId && o.TicketEventId == eventId)
+            ?? throw new NotFoundException("Pedido não encontrado.");
+
+        if (order.Status == TicketOrderStatus.Paid)
+            return Ok(new { message = "Pedido já está pago." });
+
+        if (order.Status == TicketOrderStatus.Cancelled)
+            throw new BusinessRuleException("Pedido cancelado não pode ser contabilizado.");
+
+        var now = DateTime.UtcNow;
+        // Marca como pago
+        order.Status = TicketOrderStatus.Paid;
+        order.PaidAt = now;
+        order.UpdatedAt = now;
+
+        // Incrementa SoldQuantity
+        await db.EventTickets
+            .Where(t => t.Id == order.EventTicketId)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.SoldQuantity, t => t.SoldQuantity + order.Quantity));
+
+        // Emite ingressos individuais
+        var existing = await db.IssuedTickets.AsNoTracking()
+            .Where(t => t.TicketOrderId == order.Id)
+            .Select(t => t.Sequence)
+            .ToListAsync();
+        var missing = Enumerable.Range(1, order.Quantity).Where(n => !existing.Contains(n)).ToList();
+        foreach (var n in missing)
+        {
+            db.IssuedTickets.Add(new IssuedTicket
+            {
+                TicketOrderId = order.Id,
+                TicketEventId = order.TicketEventId,
+                EventTicketId = order.EventTicketId,
+                Sequence = n,
+                Code = TicketCodes.Generate(TicketCodes.TicketCodeLength)
+            });
+        }
+
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "Pedido contabilizado com sucesso.", ticketsIssued = missing.Count });
+    }
 }
