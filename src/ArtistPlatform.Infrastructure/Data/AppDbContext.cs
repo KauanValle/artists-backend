@@ -49,6 +49,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<IssuedTicket> IssuedTickets => Set<IssuedTicket>();
     public DbSet<GateAccess> GateAccesses => Set<GateAccess>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<AdminPaymentLink> AdminPaymentLinks => Set<AdminPaymentLink>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

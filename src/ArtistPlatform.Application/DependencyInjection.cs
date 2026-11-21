@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<ITicketEventService, TicketEventService>();
         services.AddScoped<ITicketOrderService, TicketOrderService>();
         services.AddScoped<ITicketManagementService, TicketManagementService>();
+        services.AddScoped<IAdminPaymentLinkService, AdminPaymentLinkService>();
         return services;
     }
 }

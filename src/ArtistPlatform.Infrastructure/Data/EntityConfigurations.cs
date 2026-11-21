@@ -490,3 +490,19 @@ public class GateAccessConfiguration : IEntityTypeConfiguration<GateAccess>
         builder.HasIndex(g => g.TicketEventId);
     }
 }
+
+public class AdminPaymentLinkConfiguration : IEntityTypeConfiguration<AdminPaymentLink>
+{
+    public void Configure(EntityTypeBuilder<AdminPaymentLink> builder)
+    {
+        builder.ToTable("AdminPaymentLinks");
+        builder.Property(l => l.Description).HasMaxLength(200).IsRequired();
+        builder.Property(l => l.Amount).HasPrecision(12, 2);
+        builder.Property(l => l.CustomerName).HasMaxLength(120);
+        builder.Property(l => l.Note).HasMaxLength(500);
+        builder.Property(l => l.Status).HasMaxLength(20).IsRequired();
+        builder.Property(l => l.TransactionId).HasMaxLength(100);
+        builder.Property(l => l.CheckoutUrl).HasMaxLength(1000).IsRequired();
+        builder.HasIndex(l => l.CreatedAt);
+    }
+}

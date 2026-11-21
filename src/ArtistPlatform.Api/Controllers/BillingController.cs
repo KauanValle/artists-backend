@@ -43,6 +43,7 @@ public class WebhooksController(
     IBillingService billingService,
     IShowPaymentService showPaymentService,
     ITicketOrderService ticketOrderService,
+    IAdminPaymentLinkService adminPaymentLinkService,
     IOptions<AsaasOptions> asaasOptions,
     ILogger<WebhooksController> logger) : ControllerBase
 {
@@ -94,6 +95,9 @@ public class WebhooksController(
         {
             var ticketResult = await ticketOrderService.HandleWebhookAsync(paymentRef.Value, body);
             if (ticketResult is not null) return Ok(ticketResult);
+
+            var adminLinkResult = await adminPaymentLinkService.HandleWebhookAsync(paymentRef.Value, body);
+            if (adminLinkResult is not null) return Ok(adminLinkResult);
         }
 
         return Ok(await showPaymentService.HandleWebhookAsync(paymentRef, body));
