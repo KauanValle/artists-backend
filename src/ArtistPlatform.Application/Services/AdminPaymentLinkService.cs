@@ -15,9 +15,9 @@ public record AdminPaymentLinkDto(
     string Status, string CheckoutUrl, DateTime CreatedAt, DateTime? PaidAt,
     string? PaidVia, string? PaymentMethod, string? ReceiptUrl);
 
-/// <summary>Visão pública da cobrança (página /pagar/{id}): sem observação interna; checkout só enquanto pendente.</summary>
+/// <summary>Visão pública da cobrança (página /pagar/{id}); checkout só enquanto pendente.</summary>
 public record PublicPaymentLinkDto(
-    Guid Id, string Description, decimal Amount, string? CustomerName,
+    Guid Id, string Description, decimal Amount, string? CustomerName, string? Note,
     string Status, string? CheckoutUrl, DateTime CreatedAt, DateTime? PaidAt);
 
 public interface IAdminPaymentLinkService
@@ -44,8 +44,8 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
     public async Task<AdminPaymentLinkDto> CreateAsync(Guid adminId, CreateAdminPaymentLinkRequestDto request)
     {
         var description = (request.Description ?? string.Empty).Trim();
-        if (description.Length < 3 || description.Length > 200)
-            throw new ValidationException("Informe uma descrição de 3 a 200 caracteres.");
+        if (description.Length < 3 || description.Length > 1000)
+            throw new ValidationException("Informe uma descrição de 3 a 1000 caracteres.");
 
         var amount = Math.Round(request.Amount, 2);
         if (amount < 1m || amount > MaxAmount)
@@ -54,7 +54,7 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
         var customer = string.IsNullOrWhiteSpace(request.CustomerName) ? null : request.CustomerName.Trim();
         var note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
         if (customer is { Length: > 120 }) throw new ValidationException("Nome do cliente muito longo (máx. 120).");
-        if (note is { Length: > 500 }) throw new ValidationException("Observação muito longa (máx. 500).");
+        if (note is { Length: > 2000 }) throw new ValidationException("Observação muito longa (máx. 2000).");
 
         var link = new AdminPaymentLink
         {
@@ -68,7 +68,7 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
         // O Id do registro é o order_nsu do checkout: a criação do link no gateway acontece antes de gravar,
         // então um erro do InfinityPay não deixa lixo no banco.
         var result = await infinityPay.CreateLinkAsync(link.Id,
-            [new InfinityPayItem((int)Math.Round(amount * 100m), description)]);
+            [new InfinityPayItem((int)Math.Round(amount * 100m), GatewayTitle(description))]);
 
         link.CheckoutUrl = result.CheckoutUrl;
         link.TransactionId = string.IsNullOrWhiteSpace(result.TransactionId) ? null : result.TransactionId;
@@ -96,7 +96,7 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
         }
 
         return new PublicPaymentLinkDto(
-            link.Id, link.Description, link.Amount, link.CustomerName, link.Status,
+            link.Id, link.Description, link.Amount, link.CustomerName, link.Note, link.Status,
             link.Status == AdminPaymentLinkStatus.AwaitingPayment ? link.CheckoutUrl : null,
             link.CreatedAt, link.PaidAt);
     }
@@ -182,6 +182,13 @@ public class AdminPaymentLinkService(IAppDbContext db, IInfinityPayClient infini
         obj.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(p.GetString())
             ? p.GetString()![..Math.Min(p.GetString()!.Length, max)]
             : null;
+
+    /// <summary>O checkout do gateway mostra só um título curto; o texto completo fica na página /pagar/{id}.</summary>
+    private static string GatewayTitle(string description)
+    {
+        var oneLine = string.Join(' ', description.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return oneLine.Length <= 100 ? oneLine : oneLine[..99].TrimEnd() + "…";
+    }
 
     private async Task<AdminPaymentLink> Load(Guid id) =>
         await db.AdminPaymentLinks.FirstOrDefaultAsync(l => l.Id == id)
