@@ -335,4 +335,35 @@ public class AdminTicketEventsController(
 
         return Ok(new { message = "Pedido descontabilizado com sucesso.", ticketsRemoved = order.Quantity });
     }
+
+    /// <summary>
+    /// Admin exclui um pedido (e seus ingressos emitidos).
+    /// Se o pedido estava pago, decrementa SoldQuantity antes de remover.
+    /// Útil para limpar ingressos de teste.
+    /// </summary>
+    [HttpDelete("{eventId:guid}/orders/{orderId:guid}")]
+    public async Task<IActionResult> DeleteOrder(Guid eventId, Guid orderId)
+    {
+        var order = await db.TicketOrders.FirstOrDefaultAsync(o => o.Id == orderId && o.TicketEventId == eventId)
+            ?? throw new NotFoundException("Pedido não encontrado.");
+
+        // Se estava pago, decrementa SoldQuantity
+        if (order.Status == TicketOrderStatus.Paid)
+        {
+            await db.EventTickets
+                .Where(t => t.Id == order.EventTicketId)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.SoldQuantity, t => t.SoldQuantity - order.Quantity));
+        }
+
+        // Remove ingressos emitidos
+        await db.IssuedTickets
+            .Where(i => i.TicketOrderId == order.Id)
+            .ExecuteDeleteAsync();
+
+        // Remove o pedido
+        db.TicketOrders.Remove(order);
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "Pedido excluído com sucesso." });
+    }
 }
