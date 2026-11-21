@@ -301,4 +301,38 @@ public class AdminTicketEventsController(
 
         return Ok(new { message = "Pedido contabilizado com sucesso.", ticketsIssued = missing.Count });
     }
+
+    /// <summary>
+    /// Admin descontabiliza um pedido pago — reverte para AwaitingPayment,
+    /// decrementa SoldQuantity e remove os ingressos emitidos.
+    /// </summary>
+    [HttpPost("{eventId:guid}/orders/{orderId:guid}/undo-pay")]
+    public async Task<IActionResult> UndoPay(Guid eventId, Guid orderId)
+    {
+        var order = await db.TicketOrders.FirstOrDefaultAsync(o => o.Id == orderId && o.TicketEventId == eventId)
+            ?? throw new NotFoundException("Pedido não encontrado.");
+
+        if (order.Status != TicketOrderStatus.Paid)
+            throw new BusinessRuleException("Apenas pedidos pagos podem ser descontabilizados.");
+
+        var now = DateTime.UtcNow;
+        // Reverte para AwaitingPayment
+        order.Status = TicketOrderStatus.AwaitingPayment;
+        order.PaidAt = null;
+        order.UpdatedAt = now;
+
+        // Decrementa SoldQuantity
+        await db.EventTickets
+            .Where(t => t.Id == order.EventTicketId)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.SoldQuantity, t => t.SoldQuantity - order.Quantity));
+
+        // Remove ingressos emitidos deste pedido
+        await db.IssuedTickets
+            .Where(i => i.TicketOrderId == order.Id)
+            .ExecuteDeleteAsync();
+
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "Pedido descontabilizado com sucesso.", ticketsRemoved = order.Quantity });
+    }
 }
